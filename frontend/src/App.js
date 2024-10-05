@@ -7,6 +7,7 @@ function App() {
   const [longitude, setLongitude] = useState('');
   const [cloudCover, setCloudCover] = useState(70);
   const [notificationTime, setNotificationTime] = useState(1); // Time in hours before overpass
+  const [email, setEmail] = useState(''); // State to store user email
 
   // State variables for the API response and error handling
   const [satelliteData, setSatelliteData] = useState(null);
@@ -30,7 +31,9 @@ function App() {
         body: JSON.stringify({
           location: `${latitude},${longitude}`,
           cloud_cover: cloudCover,
-          date_range: 'latest'
+          date_range: 'latest',
+          email: email,  // Include email in the payload
+          notification_time: notificationTime
         })
       });
 
@@ -41,7 +44,7 @@ function App() {
       const data = await response.json();
       setSatelliteData(data); // Set the data in state for rendering
 
-      // Set up notification if next overpass is available
+      // Set up a browser notification if next overpass is available
       if (data.next_overpass) {
         scheduleNotification(data.next_overpass, notificationTime);
       }
@@ -53,7 +56,7 @@ function App() {
     }
   };
 
-  // Function to schedule a notification
+  // Function to schedule a notification (browser alert)
   const scheduleNotification = (nextOverpass, hoursBefore) => {
     const overpassDate = new Date(nextOverpass);
     const notificationTime = new Date(overpassDate.getTime() - hoursBefore * 60 * 60 * 1000);
@@ -102,6 +105,15 @@ function App() {
               onChange={(e) => setCloudCover(e.target.value)}
               min="0"
               max="100"
+              required
+            />
+          </div>
+          <div>
+            <label>Email: </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               required
             />
           </div>
