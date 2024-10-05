@@ -6,6 +6,7 @@ function App() {
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
   const [cloudCover, setCloudCover] = useState(70);
+  const [notificationTime, setNotificationTime] = useState(1); // Time in hours before overpass
 
   // State variables for the API response and error handling
   const [satelliteData, setSatelliteData] = useState(null);
@@ -39,11 +40,32 @@ function App() {
 
       const data = await response.json();
       setSatelliteData(data); // Set the data in state for rendering
+
+      // Set up notification if next overpass is available
+      if (data.next_overpass) {
+        scheduleNotification(data.next_overpass, notificationTime);
+      }
     } catch (err) {
       console.error('Error fetching satellite data:', err);
       setError(err.message);
     } finally {
       setLoading(false);  // Set loading state to false after the request completes
+    }
+  };
+
+  // Function to schedule a notification
+  const scheduleNotification = (nextOverpass, hoursBefore) => {
+    const overpassDate = new Date(nextOverpass);
+    const notificationTime = new Date(overpassDate.getTime() - hoursBefore * 60 * 60 * 1000);
+
+    // Calculate time difference in milliseconds
+    const timeDifference = notificationTime.getTime() - new Date().getTime();
+
+    if (timeDifference > 0) {
+      // Use setTimeout to show a notification at the scheduled time
+      setTimeout(() => {
+        alert(`The Landsat satellite will pass over your location in ${hoursBefore} hour(s)!`);
+      }, timeDifference);
     }
   };
 
@@ -80,6 +102,16 @@ function App() {
               onChange={(e) => setCloudCover(e.target.value)}
               min="0"
               max="100"
+              required
+            />
+          </div>
+          <div>
+            <label>Notify Me Before Overpass (Hours): </label>
+            <input
+              type="number"
+              value={notificationTime}
+              onChange={(e) => setNotificationTime(e.target.value)}
+              min="0.1"
               required
             />
           </div>
