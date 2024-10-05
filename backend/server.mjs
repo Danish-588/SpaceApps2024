@@ -26,70 +26,35 @@ function predictNextOverpass(lat, lon) {
     const tleLine2 = '2 43013  97.7421  34.8470 0001432  91.5763 268.5523 14.57178936188308'; // TLE Line 2 for Landsat-8
     const satrec = satellite.twoline2satrec(tleLine1, tleLine2);
 
-    const date = new Date();
-    const positionAndVelocity = satellite.propagate(satrec, date);
-    const positionEci = positionAndVelocity.position;
-    const gmst = satellite.gstime(date);
-    const positionGd = satellite.eciToGeodetic(positionEci, gmst);
-    const longitude = satellite.degreesLong(positionGd.longitude);
-    const latitude = satellite.degreesLat(positionGd.latitude);
+    let currentTime = new Date();
+    let nextOverpassTime = null;
 
-    return { lat: latitude, lon: longitude };
-}
+    // Iterate for the next 21 days, at intervals of 1 minute, to predict overpass
+    for (let i = 0; i < 30000; i++) {
+        currentTime = new Date(currentTime.getTime() + 60 * 1000); // Increment by 1 minute
+        const positionAndVelocity = satellite.propagate(satrec, currentTime);
+        const positionEci = positionAndVelocity.position;
 
-// Function to query Landsat data
-async function queryLandsatData(lat, lon, dateRange, cloudCover) {
-    try {
-        const stacServer = 'https://landsatlook.usgs.gov/stac-server';
-        const response = await axios.post(`${stacServer}/search`, {
-            intersects: {
-                type: "Point",
-                coordinates: [lon, lat]
-            },
-            datetime: `${dateRange[0]}/${dateRange[1]}`,
-            collections: ["landsat-c2l2-sr"],
-            query: { "eo:cloud_cover": { "lt": cloudCover } }
-        });
+        if (positionEci) {
+            const gmst = satellite.gstime(currentTime);
+            const positionGd = satellite.eciToGeodetic(positionEci, gmst);
+            const predictedLat = satellite.degreesLat(positionGd.latitude);
+            const predictedLon = satellite.degreesLong(positionGd.longitude);
 
-        return response.data.features; // Return matching scenes
-    } catch (error) {
-        console.error('Error fetching Landsat data:', error);
-        return null;
-    }
-}
-
-// Function to extract scene metadata
-function acquireSceneMetadata(scene) {
-    return {
-        acquisition_date: scene.properties.datetime,
-        cloud_cover: scene.properties['eo:cloud_cover'],
-        satellite: scene.properties.platform,
-        path: scene.properties['landsat:wrs_path'],
-        row: scene.properties['landsat:wrs_row'],
-        quality: scene.properties['landsat:quality']
-    };
-}
-
-// Function to acquire surface reflectance data
-function acquireSurfaceReflectance(scene) {
-    const bandMapping = {
-        'SR_B1': 'coastal', 'SR_B2': 'blue', 'SR_B3': 'green', 'SR_B4': 'red',
-        'SR_B5': 'nir08', 'SR_B6': 'swir16', 'SR_B7': 'swir22'
-    };
-    const bandUrls = {};
-
-    for (const [srBand, assetKey] of Object.entries(bandMapping)) {
-        if (scene.assets[assetKey]) {
-            bandUrls[srBand] = scene.assets[assetKey].href;
+            // Check if predicted location is close to the target location (within ~1 degree)
+            if (Math.abs(predictedLat - lat) < 1 && Math.abs(predictedLon - lon) < 1) {
+                nextOverpassTime = currentTime;
+                break;
+            }
         }
     }
 
-    return bandUrls;
+    return nextOverpassTime;
 }
 
 // Endpoint to analyze Landsat data
 app.post('/analyze_landsat', async (req, res) => {
-    const { location, cloud_cover = 15, date_range = 'latest' } = req.body;
+    const { location, cloud_cover = 70, date_range = 'latest' } = req.body;
 
     let lat, lon;
 
@@ -107,47 +72,73 @@ app.post('/analyze_landsat', async (req, res) => {
         return res.status(400).json({ error: 'Invalid location format' });
     }
 
-    // Handle date range
-    let startDate, endDate;
-    if (date_range === 'latest') {
-        endDate = moment().format('YYYY-MM-DDT23:59:59Z');
-        startDate = moment().subtract(30, 'days').format('YYYY-MM-DDT00:00:00Z');
-    } else {
-        try {
-            [startDate, endDate] = date_range.split('to').map(d => moment(d.trim(), 'YYYY-MM-DD').format('YYYY-MM-DD'));
-            startDate = moment(startDate).format('YYYY-MM-DDT00:00:00Z');
-            endDate = moment(endDate).format('YYYY-MM-DDT23:59:59Z');
-        } catch (error) {
-            return res.status(400).json({ error: 'Invalid date range format' });
-        }
+    // Predict the next satellite overpass
+    const nextOverpassTime = predictNextOverpass(lat, lon);
+
+    if (!nextOverpassTime) {
+        return res.status(404).json({ error: 'Unable to predict next overpass for the given location.' });
     }
 
-    // Predict the next satellite overpass
-    const nextOverpass = predictNextOverpass(lat, lon);
+    // Format next overpass time and expand the date range by ±1 month
+    const startDate = moment(nextOverpassTime).subtract(1, 'months').format('YYYY-MM-DDTHH:mm:ssZ');
+    const endDate = moment(nextOverpassTime).add(1, 'months').format('YYYY-MM-DDTHH:mm:ssZ');
 
     // Fetch Landsat scenes
-    const landsatScenes = await queryLandsatData(lat, lon, [startDate, endDate], cloud_cover);
-    if (!landsatScenes || landsatScenes.length === 0) {
-        return res.status(404).json({ error: 'No Landsat scenes found matching the criteria' });
+    const stacServer = 'https://landsatlook.usgs.gov/stac-server';
+    try {
+        const response = await axios.post(`${stacServer}/search`, {
+            intersects: {
+                type: "Point",
+                coordinates: [lon, lat]
+            },
+            datetime: `${startDate}/${endDate}`,
+            collections: ["landsat-c2l2-sr"],
+            query: { "eo:cloud_cover": { "lt": cloud_cover } }
+        });
+
+        const landsatScenes = response.data.features;
+        if (!landsatScenes || landsatScenes.length === 0) {
+            return res.status(404).json({ error: 'No Landsat scenes found matching the criteria' });
+        }
+
+        const selectedScene = landsatScenes[0];
+        const metadata = {
+            acquisition_date: selectedScene.properties.datetime,
+            cloud_cover: selectedScene.properties['eo:cloud_cover'],
+            satellite: selectedScene.properties.platform,
+            path: selectedScene.properties['landsat:wrs_path'],
+            row: selectedScene.properties['landsat:wrs_row'],
+            quality: selectedScene.properties['landsat:quality']
+        };
+
+        const bandUrls = {};
+        const bandMapping = {
+            'SR_B1': 'coastal', 'SR_B2': 'blue', 'SR_B3': 'green', 'SR_B4': 'red',
+            'SR_B5': 'nir08', 'SR_B6': 'swir16', 'SR_B7': 'swir22'
+        };
+        for (const [srBand, assetKey] of Object.entries(bandMapping)) {
+            if (selectedScene.assets[assetKey]) {
+                bandUrls[srBand] = selectedScene.assets[assetKey].href;
+            }
+        }
+
+        if (Object.keys(bandUrls).length === 0) {
+            return res.status(404).json({ error: 'No surface reflectance data available for this scene' });
+        }
+
+        // Construct the final result
+        const result = {
+            location: `${lat}, ${lon}`,
+            next_overpass: nextOverpassTime,
+            scene_metadata: metadata,
+            reflectance_data: bandUrls
+        };
+
+        return res.json(result);
+    } catch (error) {
+        console.error('Error fetching Landsat data:', error);
+        return res.status(500).json({ error: 'Failed to fetch Landsat data.' });
     }
-
-    const selectedScene = landsatScenes[0];
-    const metadata = acquireSceneMetadata(selectedScene);
-    const bandUrls = acquireSurfaceReflectance(selectedScene);
-
-    if (Object.keys(bandUrls).length === 0) {
-        return res.status(404).json({ error: 'No surface reflectance data available for this scene' });
-    }
-
-    // Construct the final result
-    const result = {
-        location: `${lat}, ${lon}`,
-        next_overpass: nextOverpass ? nextOverpass : "Unable to predict",
-        scene_metadata: metadata,
-        reflectance_data: bandUrls
-    };
-
-    return res.json(result);
 });
 
 // Start the server
