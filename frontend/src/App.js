@@ -1,16 +1,100 @@
-import React from 'react';
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
-import HomePage from './pages/HomePage';
-import MapPage from './pages/MapPage';
+import React, { useState } from 'react';
+import './App.css';
 
 function App() {
+  // State to store API data, loading status, and error
+  const [landsatData, setLandsatData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  // States to store user input values
+  const [latitude, setLatitude] = useState('');
+  const [longitude, setLongitude] = useState('');
+  const [date, setDate] = useState('');
+
+  // Example Landsat API URL (you will need your actual API key)
+  const apiUrl = 'https://api.nasa.gov/planetary/earth/imagery';
+  const apiKey = 'b5XzJdVDyPSjA342CgG7fhfWPgAYDW6DFZCw1aeN';  // Replace with your API key
+
+  // Function to fetch Landsat data based on user input
+  const fetchData = async () => {
+    setLoading(true);
+    setError(null);
+    setLandsatData(null);
+    
+    try {
+      const response = await fetch(`${apiUrl}?lon=${longitude}&lat=${latitude}&date=${date}&cloud_score=True&api_key=${apiKey}`);
+      if (!response.ok) {
+        throw new Error(`Error: ${response.statusText}`);
+      }
+      const data = await response.json();
+      setLandsatData(data);
+      setLoading(false);
+    } catch (error) {
+      setError(error.message);
+      setLoading(false);
+    }
+  };
+
+  // Function to handle form submission
+  const handleSubmit = (e) => {
+    e.preventDefault();  // Prevent form from refreshing the page
+    fetchData();         // Fetch data when the user submits the form
+  };
+
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/map" element={<MapPage />} />
-      </Routes>
-    </Router>
+    <div className="App">
+      <header className="App-header">
+        <h1>Landsat Reflectance Data</h1>
+
+        {/* Form for user input */}
+        <form onSubmit={handleSubmit}>
+          <div>
+            <label>Latitude: </label>
+            <input
+              type="number"
+              value={latitude}
+              onChange={(e) => setLatitude(e.target.value)}
+              required
+            />
+          </div>
+          <div>
+            <label>Longitude: </label>
+            <input
+              type="number"
+              value={longitude}
+              onChange={(e) => setLongitude(e.target.value)}
+              required
+            />
+          </div>
+          <div>
+            <label>Date (YYYY-MM-DD): </label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              required
+            />
+          </div>
+          <button type="submit">Get Data</button>
+        </form>
+
+        {/* Display loading spinner or error message */}
+        {loading ? (
+          <div className="loader"></div>
+        ) : error ? (
+          <p>Error: {error}</p>
+        ) : (
+          landsatData && (
+            <div>
+              <p><strong>Date:</strong> {landsatData.date}</p>
+              <p><strong>Cloud Score:</strong> {landsatData.cloud_score}</p>
+              <img src={landsatData.url} alt="Landsat imagery" style={{ maxWidth: '100%' }} />
+            </div>
+          )
+        )}
+      </header>
+    </div>
   );
 }
 
