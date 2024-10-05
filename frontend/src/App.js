@@ -32,7 +32,7 @@ function App() {
           location: `${latitude},${longitude}`,
           cloud_cover: cloudCover,
           date_range: 'latest',
-          email: email,  // Include email in the payload
+          email: email || undefined,  // Include email only if provided
           notification_time: notificationTime
         })
       });
@@ -109,12 +109,11 @@ function App() {
             />
           </div>
           <div>
-            <label>Email: </label>
+            <label>Email (optional): </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              required
             />
           </div>
           <div>
@@ -123,10 +122,12 @@ function App() {
               type="number"
               value={notificationTime}
               onChange={(e) => setNotificationTime(e.target.value)}
-              min="0.1"
+              min="0"
+              step="0.01"  // Allow more flexible values like 0.5, 1.5, etc.
               required
             />
           </div>
+
           <button type="submit" disabled={loading}>
             {loading ? 'Loading...' : 'Analyze Landsat Data'}
           </button>
@@ -141,20 +142,31 @@ function App() {
             <h2>Next Satellite Pass Details</h2>
             <p><strong>Location:</strong> {satelliteData.location}</p>
             <p><strong>Next Overpass Time:</strong> {new Date(satelliteData.next_overpass).toLocaleString()}</p>
-            <h3>Scene Metadata</h3>
-            <p><strong>Acquisition Date:</strong> {new Date(satelliteData.scene_metadata.acquisition_date).toLocaleString()}</p>
-            <p><strong>Cloud Cover:</strong> {satelliteData.scene_metadata.cloud_cover}%</p>
-            <p><strong>Satellite:</strong> {satelliteData.scene_metadata.satellite}</p>
-            <p><strong>Path:</strong> {satelliteData.scene_metadata.path}</p>
-            <p><strong>Row:</strong> {satelliteData.scene_metadata.row}</p>
+            {satelliteData.scene_metadata && (
+              <>
+                <h3>Scene Metadata</h3>
+                <p><strong>Acquisition Date:</strong> {new Date(satelliteData.scene_metadata.acquisition_date).toLocaleString()}</p>
+                <p><strong>Cloud Cover:</strong> {satelliteData.scene_metadata.cloud_cover}%</p>
+                <p><strong>Satellite:</strong> {satelliteData.scene_metadata.satellite}</p>
+                <p><strong>Path:</strong> {satelliteData.scene_metadata.path}</p>
+                <p><strong>Row:</strong> {satelliteData.scene_metadata.row}</p>
+              </>
+            )}
             <h3>Surface Reflectance Data</h3>
-            <ul>
-              {Object.entries(satelliteData.reflectance_data).map(([band, url]) => (
-                <li key={band}>
-                  <strong>{band}:</strong> <a href={url} target="_blank" rel="noopener noreferrer">Download</a>
-                </li>
-              ))}
-            </ul>
+            {satelliteData.reflectance_data ? (
+              <ul>
+                {Object.entries(satelliteData.reflectance_data).map(([band, url]) => (
+                  <li key={band}>
+                    <strong>{band}:</strong> 
+                    <a href={url} target="_blank" rel="noopener noreferrer" download>
+                      Download {band}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p>No reflectance data available.</p>
+            )}
           </div>
         )}
       </header>
