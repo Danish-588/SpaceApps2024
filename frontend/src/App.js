@@ -21,20 +21,35 @@ function App() {
     setLoading(true);
     setError(null);
     setLandsatData(null);
-    
+  
     try {
       const response = await fetch(`${apiUrl}?lon=${longitude}&lat=${latitude}&date=${date}&cloud_score=True&api_key=${apiKey}`);
+      
+      // Check if response is okay
       if (!response.ok) {
-        throw new Error(`Error: ${response.statusText}`);
+        throw new Error(`Error: ${response.status} ${response.statusText}`);
       }
-      const data = await response.json();
-      setLandsatData(data);
-      setLoading(false);
+  
+      // Log response headers and content type
+      console.log("Response Headers:", response.headers.get("Content-Type"));
+  
+      // Attempt to parse JSON only if the content type is correct
+      const contentType = response.headers.get("Content-Type");
+      if (contentType && contentType.includes("application/json")) {
+        const data = await response.json();  // Parse JSON data
+        setLandsatData(data);  // Store the data in state
+      } else {
+        throw new Error("Response is not JSON");
+      }
+  
+      setLoading(false);  // Data loaded successfully
     } catch (error) {
-      setError(error.message);
+      console.error('Error fetching data:', error);
+      setError(error.message);  // Store error message in state
       setLoading(false);
     }
   };
+  
 
   // Function to handle form submission
   const handleSubmit = (e) => {
