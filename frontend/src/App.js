@@ -122,10 +122,12 @@ function App() {
               type="number"
               value={notificationTime}
               onChange={(e) => setNotificationTime(e.target.value)}
-              min="0.1"
+              min="0"
+              step="0.01"  // Allow more flexible values like 0.5, 1.5, etc.
               required
             />
           </div>
+
           <button type="submit" disabled={loading}>
             {loading ? 'Loading...' : 'Analyze Landsat Data'}
           </button>
