@@ -1,0 +1,1 @@
+This directory is for full pages of your app, such as a Home page, Map page, etc.

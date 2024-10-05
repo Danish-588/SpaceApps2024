@@ -1,0 +1,1 @@
+This directory is used to store service files for making API calls and interacting with data, such as fetching satellite pass information from your backend.

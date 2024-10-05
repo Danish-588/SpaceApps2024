@@ -1,0 +1,1 @@
+This directory will contain reusable components like buttons, headers, footers, etc.
