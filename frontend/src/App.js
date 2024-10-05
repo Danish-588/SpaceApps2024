@@ -21,17 +21,17 @@ function App() {
     setLoading(true);
     setError(null);
     setLandsatData(null);
-    
+  
     try {
-      const apiUrlFull = `${apiUrl}?lon=${longitude}&lat=${latitude}&date=${date}&cloud_score=True&api_key=${apiKey}`;
+      const apiUrlFull = `${apiUrl}?lon=${longitude}&lat=${latitude}&date=${date}&cloud_score=True&dim=0.1&api_key=${apiKey}`;
       console.log(`API URL: ${apiUrlFull}`);  // Log the full request URL
-
+  
       const response = await fetch(apiUrlFull);
-
+  
       if (!response.ok) {
         throw new Error(`Error: ${response.status} ${response.statusText}`);
       }
-
+  
       // Check if the response is an image (blob data)
       const contentType = response.headers.get("Content-Type");
       if (contentType && contentType.includes("image")) {
@@ -44,7 +44,7 @@ function App() {
         console.log("Text Response (Non-Image):", textResponse);
         throw new Error("Expected image data but received something else");
       }
-
+  
       setLoading(false);  // Stop loading
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -52,6 +52,7 @@ function App() {
       setLoading(false);  // Stop loading
     }
   };
+  
 
   // Function to handle form submission
   const handleSubmit = (e) => {
