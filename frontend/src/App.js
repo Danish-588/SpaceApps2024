@@ -14,42 +14,44 @@ function App() {
 
   // Example Landsat API URL (you will need your actual API key)
   const apiUrl = 'https://api.nasa.gov/planetary/earth/imagery';
-  const apiKey = 'b5XzJdVDyPSjA342CgG7fhfWPgAYDW6DFZCw1aeN';  // Replace with your API key
+  const apiKey = 'b5XzJdVDyPSjA342CgG7fhfWPgAYDW6DFZCw1aeN';  // Replace with your actual API key
 
   // Function to fetch Landsat data based on user input
   const fetchData = async () => {
     setLoading(true);
     setError(null);
     setLandsatData(null);
-  
+    
     try {
-      const response = await fetch(`${apiUrl}?lon=${longitude}&lat=${latitude}&date=${date}&cloud_score=True&api_key=${apiKey}`);
-      
-      // Check if response is okay
+      const apiUrlFull = `${apiUrl}?lon=${longitude}&lat=${latitude}&date=${date}&cloud_score=True&api_key=${apiKey}`;
+      console.log(`API URL: ${apiUrlFull}`);  // Log the full request URL
+
+      const response = await fetch(apiUrlFull);
+
       if (!response.ok) {
         throw new Error(`Error: ${response.status} ${response.statusText}`);
       }
-  
-      // Log response headers and content type
-      console.log("Response Headers:", response.headers.get("Content-Type"));
-  
-      // Attempt to parse JSON only if the content type is correct
+
+      // Check if the response is an image (blob data)
       const contentType = response.headers.get("Content-Type");
-      if (contentType && contentType.includes("application/json")) {
-        const data = await response.json();  // Parse JSON data
-        setLandsatData(data);  // Store the data in state
+      if (contentType && contentType.includes("image")) {
+        const blob = await response.blob();  // Read the response as a blob
+        const imageUrl = URL.createObjectURL(blob);  // Create a local URL for the image
+        console.log("Image URL:", imageUrl);  // Log the image URL
+        setLandsatData(imageUrl);  // Store the image URL in state
       } else {
-        throw new Error("Response is not JSON");
+        const textResponse = await response.text();  // Handle non-JSON, non-image responses
+        console.log("Text Response (Non-Image):", textResponse);
+        throw new Error("Expected image data but received something else");
       }
-  
-      setLoading(false);  // Data loaded successfully
+
+      setLoading(false);  // Stop loading
     } catch (error) {
       console.error('Error fetching data:', error);
-      setError(error.message);  // Store error message in state
-      setLoading(false);
+      setError(error.message);  // Set error message
+      setLoading(false);  // Stop loading
     }
   };
-  
 
   // Function to handle form submission
   const handleSubmit = (e) => {
@@ -94,17 +96,16 @@ function App() {
           <button type="submit">Get Data</button>
         </form>
 
-        {/* Display loading spinner or error message */}
+        {/* Display loading spinner, error message, or image */}
         {loading ? (
-          <div className="loader"></div>
+          <div className="loader"></div>  // Show loader while data is being fetched
         ) : error ? (
-          <p>Error: {error}</p>
+          <p>Error: {error}</p>  // Display error message if an error occurs
         ) : (
           landsatData && (
             <div>
-              <p><strong>Date:</strong> {landsatData.date}</p>
-              <p><strong>Cloud Score:</strong> {landsatData.cloud_score}</p>
-              <img src={landsatData.url} alt="Landsat imagery" style={{ maxWidth: '100%' }} />
+              <p><strong>Landsat Imagery:</strong></p>
+              <img src={landsatData} alt="Landsat Imagery" style={{ maxWidth: '100%' }} />  {/* Render image */}
             </div>
           )
         )}
