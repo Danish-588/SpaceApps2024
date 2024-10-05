@@ -5,6 +5,7 @@ import satellite from 'satellite.js';
 import cors from 'cors';
 import moment from 'moment';
 import dotenv from 'dotenv';
+import nodemailer from 'nodemailer';
 
 dotenv.config(); // Load environment variables
 
@@ -18,6 +19,15 @@ app.use(express.json());
 // Set up geocoder
 const geocoder = NodeGeocoder({
     provider: 'openstreetmap'
+});
+
+// Set up Nodemailer
+const transporter = nodemailer.createTransport({
+  service: 'gmail', // You can use another email service provider
+  auth: {
+    user: process.env.EMAIL_USER, // Your email address
+    pass: process.env.EMAIL_PASS  // Your email password (Consider using an app password)
+  }
 });
 
 // Function to predict the next satellite overpass
@@ -54,7 +64,7 @@ function predictNextOverpass(lat, lon) {
 
 // Endpoint to analyze Landsat data
 app.post('/analyze_landsat', async (req, res) => {
-    const { location, cloud_cover = 70, date_range = 'latest' } = req.body;
+    const { location, cloud_cover = 70, date_range = 'latest', email, notification_time } = req.body;
 
     let lat, lon;
 
@@ -79,66 +89,34 @@ app.post('/analyze_landsat', async (req, res) => {
         return res.status(404).json({ error: 'Unable to predict next overpass for the given location.' });
     }
 
-    // Format next overpass time and expand the date range by ±1 month
-    const startDate = moment(nextOverpassTime).subtract(1, 'months').format('YYYY-MM-DDTHH:mm:ssZ');
-    const endDate = moment(nextOverpassTime).add(1, 'months').format('YYYY-MM-DDTHH:mm:ssZ');
+    // Schedule the email notification
+    const notificationDate = new Date(nextOverpassTime.getTime() - notification_time * 60 * 60 * 1000);
+    const timeDifference = notificationDate.getTime() - new Date().getTime();
 
-    // Fetch Landsat scenes
-    const stacServer = 'https://landsatlook.usgs.gov/stac-server';
-    try {
-        const response = await axios.post(`${stacServer}/search`, {
-            intersects: {
-                type: "Point",
-                coordinates: [lon, lat]
-            },
-            datetime: `${startDate}/${endDate}`,
-            collections: ["landsat-c2l2-sr"],
-            query: { "eo:cloud_cover": { "lt": cloud_cover } }
-        });
+    if (timeDifference > 0) {
+        setTimeout(() => {
+            const mailOptions = {
+                from: process.env.EMAIL_USER,
+                to: email,
+                subject: 'Upcoming Landsat Satellite Overpass',
+                text: `The Landsat satellite will pass over your location (${lat}, ${lon}) on ${new Date(nextOverpassTime).toLocaleString()}.`
+            };
 
-        const landsatScenes = response.data.features;
-        if (!landsatScenes || landsatScenes.length === 0) {
-            return res.status(404).json({ error: 'No Landsat scenes found matching the criteria' });
-        }
-
-        const selectedScene = landsatScenes[0];
-        const metadata = {
-            acquisition_date: selectedScene.properties.datetime,
-            cloud_cover: selectedScene.properties['eo:cloud_cover'],
-            satellite: selectedScene.properties.platform,
-            path: selectedScene.properties['landsat:wrs_path'],
-            row: selectedScene.properties['landsat:wrs_row'],
-            quality: selectedScene.properties['landsat:quality']
-        };
-
-        const bandUrls = {};
-        const bandMapping = {
-            'SR_B1': 'coastal', 'SR_B2': 'blue', 'SR_B3': 'green', 'SR_B4': 'red',
-            'SR_B5': 'nir08', 'SR_B6': 'swir16', 'SR_B7': 'swir22'
-        };
-        for (const [srBand, assetKey] of Object.entries(bandMapping)) {
-            if (selectedScene.assets[assetKey]) {
-                bandUrls[srBand] = selectedScene.assets[assetKey].href;
-            }
-        }
-
-        if (Object.keys(bandUrls).length === 0) {
-            return res.status(404).json({ error: 'No surface reflectance data available for this scene' });
-        }
-
-        // Construct the final result
-        const result = {
-            location: `${lat}, ${lon}`,
-            next_overpass: nextOverpassTime,
-            scene_metadata: metadata,
-            reflectance_data: bandUrls
-        };
-
-        return res.json(result);
-    } catch (error) {
-        console.error('Error fetching Landsat data:', error);
-        return res.status(500).json({ error: 'Failed to fetch Landsat data.' });
+            transporter.sendMail(mailOptions, (err, info) => {
+                if (err) {
+                    console.error('Error sending email:', err);
+                } else {
+                    console.log('Email sent:', info.response);
+                }
+            });
+        }, timeDifference);
     }
+
+    // Respond with satellite data as usual
+    res.json({
+        location: `${lat}, ${lon}`,
+        next_overpass: nextOverpassTime,
+    });
 });
 
 // Start the server
