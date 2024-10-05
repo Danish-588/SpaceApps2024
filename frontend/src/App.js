@@ -32,7 +32,7 @@ function App() {
           location: `${latitude},${longitude}`,
           cloud_cover: cloudCover,
           date_range: 'latest',
-          email: email,  // Include email in the payload
+          email: email || undefined,  // Include email only if provided
           notification_time: notificationTime
         })
       });
@@ -109,12 +109,11 @@ function App() {
             />
           </div>
           <div>
-            <label>Email: </label>
+            <label>Email (optional): </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              required
             />
           </div>
           <div>
