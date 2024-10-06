@@ -115,30 +115,42 @@ function acquireSceneMetadata(scene) {
 }
 
 // Function to acquire surface reflectance data
+// Function to acquire surface reflectance data
 async function acquireSurfaceReflectance(scene) {
     const bandMapping = {
-        'SR_B1': 'coastal', 'SR_B2': 'blue', 'SR_B3': 'green', 'SR_B4': 'red',
-        'SR_B5': 'nir08', 'SR_B6': 'swir16', 'SR_B7': 'swir22'
+      'SR_B1': 'coastal', 'SR_B2': 'blue', 'SR_B3': 'green', 'SR_B4': 'red',
+      'SR_B5': 'nir08', 'SR_B6': 'swir16', 'SR_B7': 'swir22'
     };
     const bandUrls = {};
-
+  
     for (const [srBand, assetKey] of Object.entries(bandMapping)) {
-        if (scene.assets[assetKey]) {
-            const url = scene.assets[assetKey].href;
-            const response = await axios.get(url, {
-                headers: {
-                    'Authorization': `Bearer ${process.env.USGS_API_TOKEN}`
-                }
-            });
-
-            if (response.status === 200) {
-                bandUrls[srBand] = url;
+      if (scene.assets[assetKey]) {
+        const url = scene.assets[assetKey].href;
+        try {
+          const response = await axios.get(url, {
+            timeout: 10000, // Set timeout to 10 seconds
+            headers: {
+              'Authorization': `Bearer ${process.env.USGS_API_TOKEN}`
             }
+          });
+  
+          if (response.status === 200) {
+            bandUrls[srBand] = url;
+          }
+        } catch (error) {
+          console.error(`Error fetching data for band ${srBand}:`, error.message);
+          // Handle specific timeout error, ignore or retry if needed
+          if (error.code === 'ETIMEDOUT') {
+            console.warn(`Request for ${srBand} timed out. Continuing with other bands...`);
+          } else {
+            return null; // Optionally exit the function in case of other errors
+          }
         }
+      }
     }
-
+  
     return bandUrls;
-}
+  }  
 
 // Endpoint to fetch NASA imagery
 app.post('/fetch_imagery', async (req, res) => {
