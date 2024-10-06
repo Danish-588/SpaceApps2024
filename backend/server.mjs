@@ -85,9 +85,6 @@ function predictNextOverpass(lat, lon) {
   return overpassTimes;
 }
 
-
-  
-
 // Function to query Landsat data
 async function queryLandsatData(lat, lon, dateRange, cloudCover) {
   try {
