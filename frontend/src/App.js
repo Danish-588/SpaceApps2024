@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar, Nav } from 'react-bootstrap';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
@@ -17,9 +17,10 @@ function Home() {
   const [landsatImage, setLandsatImage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [countdowns, setCountdowns] = useState({});
 
   const apiUrl = 'https://api.nasa.gov/planetary/earth/imagery';
-  const apiKey = 'b5XzJdVDyPSjA342CgG7fhfWPgAYDW6DFZCw1aeN';  
+  const apiKey = 'b5XzJdVDyPSjA342CgG7fhfWPgAYDW6DFZCw1aeN';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -82,7 +83,6 @@ function Home() {
       const landsatBlob = await landsatResponse.blob();
       const landsatUrl = URL.createObjectURL(landsatBlob);
       setLandsatImage(landsatUrl);
-      
     } catch (err) {
       console.error('Error fetching data:', err);
       setError(err.message);
@@ -107,10 +107,64 @@ function Home() {
       },
     });
 
-    return latitude && longitude ? (
-      <Marker position={[latitude, longitude]}></Marker>
-    ) : null;
+    return latitude && longitude ? <Marker position={[latitude, longitude]}></Marker> : null;
   };
+
+  useEffect(() => {
+    if (satelliteData && satelliteData.overpass_times) {
+      const updateCountdowns = () => {
+        const now = new Date().getTime();
+        const newCountdowns = {};
+
+        satelliteData.overpass_times.forEach((overpass, index) => {
+          if (overpass.next_overpass) {
+            const overpassTime = new Date(overpass.next_overpass).getTime();
+            const timeRemaining = overpassTime - now;
+
+            if (timeRemaining > 0) {
+              const hoursToOverpass = timeRemaining / (1000 * 60 * 60);
+              if (email && notificationTime && hoursToOverpass <= notificationTime) {
+                // Notify the backend to send the email reminder
+                fetch('/api/send_notification', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    email,
+                    satellite: overpass.satellite,
+                    overpass_time: overpass.next_overpass,
+                  }),
+                })
+                  .then((res) => {
+                    if (!res.ok) {
+                      throw new Error('Failed to send email notification');
+                    }
+                  })
+                  .catch((err) => console.error('Error sending notification:', err));
+              }
+  
+              const days = Math.floor(timeRemaining / (1000 * 60 * 60 * 24));
+              const hours = Math.floor((timeRemaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+              const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60));
+              const seconds = Math.floor((timeRemaining % (1000 * 60)) / 1000);
+  
+              newCountdowns[`landsat_${index}`] = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+            } else {
+              newCountdowns[`landsat_${index}`] = 'Currently passing over';
+            }
+          }
+        });
+
+        setCountdowns(newCountdowns);
+      };
+
+      const interval = setInterval(updateCountdowns, 1000);
+      updateCountdowns(); // Initial call to set countdown immediately
+
+      return () => clearInterval(interval);
+    }
+  }, [satelliteData]);
 
   return (
     <div className="App-content">
@@ -121,61 +175,27 @@ function Home() {
         <form onSubmit={handleSubmit} className="input-form" style={{ marginRight: '20px', flexGrow: '1' }}>
           <div className="form-group">
             <label>Latitude:</label>
-            <input
-              type="number"
-              value={latitude}
-              onChange={(e) => setLatitude(e.target.value)}
-              min="-90"
-              max="90"
-              step="0.000001"
-              required
-            />
+            <input type="number" value={latitude} onChange={(e) => setLatitude(e.target.value)} min="-90" max="90" step="0.000001" required />
             <small>Enter a value between -90 and 90, up to 6 decimal places.</small>
           </div>
           <div className="form-group">
             <label>Longitude:</label>
-            <input
-              type="number"
-              value={longitude}
-              onChange={(e) => setLongitude(e.target.value)}
-              min="-180"
-              max="180"
-              step="0.000001"
-              required
-            />
+            <input type="number" value={longitude} onChange={(e) => setLongitude(e.target.value)} min="-180" max="180" step="0.000001" required />
             <small>Enter a value between -180 and 180, up to 6 decimal places.</small>
           </div>
           <div className="form-group">
             <label>Cloud Cover Threshold (%):</label>
-            <input
-              type="number"
-              value={cloudCover}
-              onChange={(e) => setCloudCover(e.target.value)}
-              min="0"
-              max="100"
-              required
-            />
+            <input type="number" value={cloudCover} onChange={(e) => setCloudCover(e.target.value)} min="0" max="100" required />
             <small>Enter a value between 0 and 100 to set the cloud cover threshold.</small>
           </div>
           <div className="form-group">
             <label>Email (optional):</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
             <small>Enter your email address to receive notifications.</small>
           </div>
           <div className="form-group">
             <label>Notify Me Before Overpass (Hours):</label>
-            <input
-              type="number"
-              value={notificationTime}
-              onChange={(e) => setNotificationTime(e.target.value)}
-              min="0.1"
-              step="0.1"
-              required
-            />
+            <input type="number" value={notificationTime} onChange={(e) => setNotificationTime(e.target.value)} min="0.1" step="0.1" required />
             <small>Enter the number of hours before the overpass to receive a notification.</small>
           </div>
 
@@ -210,46 +230,18 @@ function Home() {
 
       {satelliteData && (
         <div className="satellite-data">
-          <h2>Next Satellite Pass Details</h2>
-          <p><strong>Location:</strong> {satelliteData.location}</p>
-          <h3>Next Overpasses:</h3>
-          {satelliteData.overpass_times.length > 0 ? (
-            satelliteData.overpass_times.map((overpass, index) => (
-              <div key={index} className="overpass-details">
-                <p>
-                  <strong>Satellite:</strong> {overpass.satellite}
-                </p>
-                <p>
-                  <strong>Next Overpass:</strong>{' '}
-                  {overpass.next_overpass
-                    ? new Date(overpass.next_overpass).toLocaleString()
-                    : 'No upcoming overpass.'}
-                </p>
-              </div>
-            ))
-          ) : (
-            <p>No upcoming overpasses found for the selected location.</p>
-          )}
-
-    {/* Surface Reflectance Data Section */}
-    <h3>Surface Reflectance Data</h3>
-    {satelliteData.reflectance_data && Object.keys(satelliteData.reflectance_data).length > 0 ? (
-      <ul>
-        {Object.entries(satelliteData.reflectance_data).map(([band, url]) => (
-          <li key={band}>
-            <strong>{band}:</strong>{' '}
-            <a href={url} target="_blank" rel="noopener noreferrer">
-              Download {band} Band
-            </a>
-          </li>
-        ))}
-      </ul>
-    ) : (
-      <p>No surface reflectance data available for download.</p>
-    )}
+          <h2>Satellite Data</h2>
+          {satelliteData.overpass_times.map((overpass, index) => (
+            <div key={index}>
+              <p>Landsat {index + 8} Next Overpass: {new Date(overpass.next_overpass).toLocaleString()}</p>
+              {countdowns[`landsat_${index}`] && (
+                <p>Time Remaining Until Overpass: {countdowns[`landsat_${index}`]}</p>
+              )}
+            </div>
+          ))}
+          <p>Cloud Cover: {cloudCover}%</p>
         </div>
       )}
-
 
       {imageryUrl && (
         <div className="nasa-imagery">

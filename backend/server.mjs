@@ -7,6 +7,7 @@ import moment from 'moment';
 import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
 
+
 dotenv.config(); // Load environment variables
 
 const app = express();
@@ -83,6 +84,9 @@ function predictNextOverpass(lat, lon) {
 
   return overpassTimes;
 }
+
+
+  
 
 // Function to query Landsat data
 async function queryLandsatData(lat, lon, dateRange, cloudCover) {
@@ -167,6 +171,8 @@ app.post('/api/analyze_landsat', async (req, res) => {
     return res.status(400).json({ error: 'Invalid location format' });
   }
 
+  
+
   // Predict the next satellite overpass for both Landsat satellites
   const overpassTimes = predictNextOverpass(lat, lon);
 
@@ -199,6 +205,7 @@ app.post('/api/analyze_landsat', async (req, res) => {
     reflectance_data: bandUrls,
   });
 });
+
 
 // Endpoint to fetch NASA imagery
 app.post('/api/fetch_imagery', async (req, res) => {
