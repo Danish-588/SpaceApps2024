@@ -57,24 +57,6 @@ function App() {
         });
       }
 
-      // Fetching NASA imagery for the selected coordinates
-      const imageryResponse = await fetch('http://localhost:5000/fetch_imagery', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          lat: latitude,
-          lon: longitude
-        })
-      });
-
-      if (!imageryResponse.ok) {
-        throw new Error('Failed to fetch imagery. Please try again.');
-      }
-
-      const imageryData = await imageryResponse.json();
-      setImageryUrl(imageryData.imageUrl); // Set the imagery URL for rendering
     } catch (err) {
       console.error('Error fetching data:', err);
       setError(err.message);
@@ -178,7 +160,7 @@ function App() {
           </div>
 
           <button type="submit" disabled={loading}>
-            {loading ? 'Loading...' : 'Analyze and Fetch Imagery'}
+            {loading ? 'Loading...' : 'Analyze Landsat Data'}
           </button>
         </form>
 
@@ -208,24 +190,6 @@ function App() {
                 <strong>{overpass.satellite}:</strong> {overpass.next_overpass ? new Date(overpass.next_overpass).toLocaleString() : 'No upcoming overpass.'}
               </p>
             ))}
-            {satelliteData.scene_metadata && (
-              <>
-                <h3>Scene Metadata</h3>
-                <p><strong>Acquisition Date:</strong> {new Date(satelliteData.scene_metadata.acquisition_date).toLocaleString()}</p>
-                <p><strong>Cloud Cover:</strong> {satelliteData.scene_metadata.cloud_cover}%</p>
-                <p><strong>Satellite:</strong> {satelliteData.scene_metadata.satellite}</p>
-                <p><strong>Path:</strong> {satelliteData.scene_metadata.path}</p>
-                <p><strong>Row:</strong> {satelliteData.scene_metadata.row}</p>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* Display NASA imagery */}
-        {imageryUrl && (
-          <div>
-            <h2>NASA Imagery</h2>
-            <img src={imageryUrl} alt="NASA Satellite Imagery" style={{ maxWidth: '100%', marginTop: '20px' }} />
           </div>
         )}
       </header>
