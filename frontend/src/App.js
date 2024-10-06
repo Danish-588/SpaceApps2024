@@ -153,13 +153,14 @@ function App() {
               </>
             )}
             <h3>Surface Reflectance Data</h3>
+            <p>Select and download reflectance bands to analyze data for your region of interest:</p>
             {satelliteData.reflectance_data ? (
               <ul>
                 {Object.entries(satelliteData.reflectance_data).map(([band, url]) => (
                   <li key={band}>
-                    <strong>{band}:</strong> 
+                    <strong>{band}:</strong>
                     <a href={url} target="_blank" rel="noopener noreferrer" download>
-                      Download {band}
+                      Download {band} Band
                     </a>
                   </li>
                 ))}
@@ -169,6 +170,7 @@ function App() {
             )}
           </div>
         )}
+
       </header>
     </div>
   );
