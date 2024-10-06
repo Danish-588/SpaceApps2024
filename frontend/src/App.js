@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Container, Navbar, Nav } from 'react-bootstrap';
+import { Navbar, Nav } from 'react-bootstrap';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import 'leaflet/dist/leaflet.css';
@@ -97,91 +97,93 @@ function Home() {
       <h1>Landsat Analysis Tool</h1>
       <p>Analyze Landsat satellite data and receive notifications for upcoming satellite passes.</p>
 
-      <form onSubmit={handleSubmit} className="input-form">
-        <div className="form-group">
-          <label>Latitude:</label>
-          <input
-            type="number"
-            value={latitude}
-            onChange={(e) => setLatitude(e.target.value)}
-            min="-90"
-            max="90"
-            step="0.000001"
-            required
-          />
-          <small>Enter a value between -90 and 90, up to 6 decimal places.</small>
-        </div>
-        <div className="form-group">
-          <label>Longitude:</label>
-          <input
-            type="number"
-            value={longitude}
-            onChange={(e) => setLongitude(e.target.value)}
-            min="-180"
-            max="180"
-            step="0.000001"
-            required
-          />
-          <small>Enter a value between -180 and 180, up to 6 decimal places.</small>
-        </div>
-        <div className="form-group">
-          <label>Cloud Cover Threshold (%):</label>
-          <input
-            type="number"
-            value={cloudCover}
-            onChange={(e) => setCloudCover(e.target.value)}
-            min="0"
-            max="100"
-            required
-          />
-          <small>Enter a value between 0 and 100 to set the cloud cover threshold.</small>
-        </div>
-        <div className="form-group">
-          <label>Email (optional):</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <small>Enter your email address to receive notifications.</small>
-        </div>
-        <div className="form-group">
-          <label>Notify Me Before Overpass (Hours):</label>
-          <input
-            type="number"
-            value={notificationTime}
-            onChange={(e) => setNotificationTime(e.target.value)}
-            min="0.1"
-            step="0.1"
-            required
-          />
-          <small>Enter the number of hours before the overpass to receive a notification.</small>
-        </div>
+      <div className="flex-container">
+        <form onSubmit={handleSubmit} className="input-form" style={{ marginRight: '20px', flexGrow: '1' }}>
+          <div className="form-group">
+            <label>Latitude:</label>
+            <input
+              type="number"
+              value={latitude}
+              onChange={(e) => setLatitude(e.target.value)}
+              min="-90"
+              max="90"
+              step="0.000001"
+              required
+            />
+            <small>Enter a value between -90 and 90, up to 6 decimal places.</small>
+          </div>
+          <div className="form-group">
+            <label>Longitude:</label>
+            <input
+              type="number"
+              value={longitude}
+              onChange={(e) => setLongitude(e.target.value)}
+              min="-180"
+              max="180"
+              step="0.000001"
+              required
+            />
+            <small>Enter a value between -180 and 180, up to 6 decimal places.</small>
+          </div>
+          <div className="form-group">
+            <label>Cloud Cover Threshold (%):</label>
+            <input
+              type="number"
+              value={cloudCover}
+              onChange={(e) => setCloudCover(e.target.value)}
+              min="0"
+              max="100"
+              required
+            />
+            <small>Enter a value between 0 and 100 to set the cloud cover threshold.</small>
+          </div>
+          <div className="form-group">
+            <label>Email (optional):</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <small>Enter your email address to receive notifications.</small>
+          </div>
+          <div className="form-group">
+            <label>Notify Me Before Overpass (Hours):</label>
+            <input
+              type="number"
+              value={notificationTime}
+              onChange={(e) => setNotificationTime(e.target.value)}
+              min="0.1"
+              step="0.1"
+              required
+            />
+            <small>Enter the number of hours before the overpass to receive a notification.</small>
+          </div>
 
-        <button type="submit" className="btn btn-primary" disabled={loading}>
-          {loading ? 'Loading...' : 'Analyze and Fetch Imagery'}
-        </button>
-      </form>
+          <button type="submit" className="btn btn-primary" disabled={loading}>
+            {loading ? 'Loading...' : 'Analyze and Fetch Imagery'}
+          </button>
+        </form>
 
-      <div className="map-container">
-        <MapContainer
-          center={[0, 0]}
-          zoom={2}
-          minZoom={2}
-          maxBounds={[
-            [-90, -180],
-            [90, 180],
-          ]}
-          maxBoundsViscosity={1.0}
-          style={{ height: '400px', width: '100%' }}
-        >
-          <TileLayer
-            url="https://tiles.stadiamaps.com/tiles/osm_bright/{z}/{x}/{y}{r}.png?api_key=STADIA_API_KEY"
-            attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a>, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          />
-          <LocationMarker />
-        </MapContainer>
-        <small>Click on the map to set latitude and longitude values automatically.</small>
+        <div className="map-container" style={{ height: '50vh', width: '45%', flexGrow: '2' }}>
+          <MapContainer
+            center={[0, 0]}
+            zoom={2}
+            minZoom={2}
+            maxBounds={[
+              [-90, -180],
+              [90, 180],
+            ]}
+            maxBoundsViscosity={1.0}
+            style={{ height: '100%', width: '100%' }}
+          >
+            <TileLayer
+              url="https://tiles.stadiamaps.com/tiles/osm_bright/{z}/{x}/{y}{r}.png?api_key=STADIA_API_KEY"
+              attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a>, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            />
+            <LocationMarker />
+          </MapContainer>
+          <small>Click on the map to set latitude and longitude values automatically.</small>
+        </div>
       </div>
 
       {error && <p className="error-text">{error}</p>}
@@ -221,57 +223,25 @@ function Home() {
   );
 }
 
-function LandsatInfo() {
-  return (
-    <div className="landsat-info">
-      <h2>About Landsat</h2>
-      <p>
-        The Landsat program is a series of Earth-observing satellite missions jointly managed by NASA and the U.S. Geological Survey (USGS).
-        Since 1972, Landsat satellites have continuously gathered data about the Earth's surface, providing critical information for monitoring and managing land resources.
-      </p>
-      <p>
-        Landsat data is widely used in agriculture, forestry, geology, and land use planning. It is a vital resource for understanding climate change, deforestation,
-        urban expansion, and disaster response.
-      </p>
-    </div>
-  );
-}
-
-function Reminders() {
-  return (
-    <div className="reminders">
-      <h2>Satellite Overpass Reminders</h2>
-      <p>
-        Set reminders to be notified when a Landsat satellite is about to pass over your selected location. You will receive a notification based on the time you specify before the overpass.
-      </p>
-    </div>
-  );
-}
-
 function App() {
   return (
     <Router>
       <Navbar bg="dark" variant="dark" expand="lg">
-        <Container>
-          <Navbar.Brand href="/">Landsat Analysis Tool</Navbar.Brand>
-          <Navbar.Toggle aria-controls="basic-navbar-nav" />
-          <Navbar.Collapse id="basic-navbar-nav">
-            <Nav className="me-auto">
-              <Nav.Link href="/">Home</Nav.Link>
-              <Nav.Link href="/landsat-info">Landsat Info</Nav.Link>
-              <Nav.Link href="/reminders">Reminders</Nav.Link>
-            </Nav>
-          </Navbar.Collapse>
-        </Container>
+        <Navbar.Brand href="/">Landsat Analysis Tool</Navbar.Brand>
+        <Navbar.Toggle aria-controls="basic-navbar-nav" />
+        <Navbar.Collapse id="basic-navbar-nav">
+          <Nav className="me-auto">
+            <Nav.Link href="/">Home</Nav.Link>
+            <Nav.Link href="/landsat-info">Landsat Info</Nav.Link>
+            <Nav.Link href="/reminders">Reminders</Nav.Link>
+          </Nav>
+        </Navbar.Collapse>
       </Navbar>
 
-      <Container>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/landsat-info" element={<LandsatInfo />} />
-          <Route path="/reminders" element={<Reminders />} />
-        </Routes>
-      </Container>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        {/* Add other routes as necessary */}
+      </Routes>
     </Router>
   );
 }

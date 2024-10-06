@@ -7,6 +7,47 @@
   min-height: 100vh;
 }
 
+.App-content {
+  padding: 10px;
+  text-align: left;
+}
+
+.flex-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.input-form {
+  flex: 1;
+  max-width: 30%;
+}
+
+.map-container {
+  flex: 1.5;
+  width: 60%;
+  height: 70vh;
+}
+
+form {
+  padding: 10px;
+  background: none; /* Removed box background */
+  box-shadow: none; /* Removed shadow to make it more open */
+  margin: 0;
+}
+
+.error-text {
+  color: red;
+  margin-top: 10px;
+}
+
+.nasa-imagery img {
+  max-width: 100%;
+  margin-top: 20px;
+}
+
+
 .App-header {
   padding: 20px;
   display: flex;
@@ -103,8 +144,8 @@ input:focus {
 
 /* Map Container Styling */
 .map-container {
-  height: 400px;
-  width: 80%;
+  height: 30%;
+  width: 100%;
   max-width: 800px;
   margin: 30px auto;
   border: 5px solid #ffdd59; /* Border around the map container */
@@ -129,7 +170,7 @@ input:focus {
 
 .nav-link {
   font-weight: bold;
-  color: #282c34;
+  color: #ffffff;
   text-decoration: none;
   padding: 10px;
   transition: all 0.3s ease-in-out;
