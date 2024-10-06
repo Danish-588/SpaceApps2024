@@ -32,7 +32,7 @@ function App() {
           location: `${latitude},${longitude}`,
           cloud_cover: cloudCover,
           date_range: 'latest',
-          email: email || undefined,  // Include email only if provided
+          email: email.trim() ? email : undefined,  // Include email only if provided
           notification_time: notificationTime
         })
       });
@@ -85,8 +85,12 @@ function App() {
               type="number"
               value={latitude}
               onChange={(e) => setLatitude(e.target.value)}
+              min="-90"
+              max="90"
+              step="0.01"
               required
             />
+            <small>Enter a value between -90 and 90.</small>
           </div>
           <div>
             <label>Longitude: </label>
@@ -94,8 +98,12 @@ function App() {
               type="number"
               value={longitude}
               onChange={(e) => setLongitude(e.target.value)}
+              min="-180"
+              max="180"
+              step="0.01"
               required
             />
+            <small>Enter a value between -180 and 180.</small>
           </div>
           <div>
             <label>Cloud Cover Threshold (%): </label>
@@ -107,6 +115,7 @@ function App() {
               max="100"
               required
             />
+            <small>Enter a value between 0 and 100 to set cloud cover threshold.</small>
           </div>
           <div>
             <label>Email (optional): </label>
@@ -115,6 +124,7 @@ function App() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
+            <small>Enter your email address if you want to receive notifications.</small>
           </div>
           <div>
             <label>Notify Me Before Overpass (Hours): </label>
@@ -122,10 +132,11 @@ function App() {
               type="number"
               value={notificationTime}
               onChange={(e) => setNotificationTime(e.target.value)}
-              min="0"
-              step="0.01"  // Allow more flexible values like 0.5, 1.5, etc.
+              min="0.1"
+              step="0.1"  // Allow more flexible values like 0.5, 1.5, etc.
               required
             />
+            <small>Enter the number of hours before the overpass to receive a notification.</small>
           </div>
 
           <button type="submit" disabled={loading}>
