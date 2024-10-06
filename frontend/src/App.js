@@ -231,25 +231,42 @@ function Home() {
             <p>No upcoming overpasses found for the selected location.</p>
           )}
 
-    {/* Surface Reflectance Data Section */}
-    <h3>Surface Reflectance Data</h3>
-    {satelliteData.reflectance_data && Object.keys(satelliteData.reflectance_data).length > 0 ? (
-      <ul>
-        {Object.entries(satelliteData.reflectance_data).map(([band, url]) => (
-          <li key={band}>
-            <strong>{band}:</strong>{' '}
-            <a href={url} target="_blank" rel="noopener noreferrer">
-              Download {band} Band
-            </a>
-          </li>
-        ))}
-      </ul>
-    ) : (
-      <p>No surface reflectance data available for download.</p>
-    )}
+          {/* Surface Reflectance Data Section */}
+          <h3>Surface Reflectance Data for 3x3 Grid</h3>
+          {satelliteData.grid_data && satelliteData.grid_data.length > 0 ? (
+            satelliteData.grid_data.map((pixelData, index) => (
+              <div key={index} className="grid-data">
+                <h4>Pixel {index + 1}</h4>
+                {pixelData.error ? (
+                  <p>{pixelData.error}</p>
+                ) : (
+                  <>
+                    <p><strong>Acquisition Date:</strong> {new Date(pixelData.metadata.acquisition_date).toLocaleString()}</p>
+                    <p><strong>Cloud Cover:</strong> {pixelData.metadata.cloud_cover}%</p>
+                    <p><strong>Satellite:</strong> {pixelData.metadata.satellite}</p>
+                    {Object.keys(pixelData.reflectanceData).length > 0 ? (
+                      <ul>
+                        {Object.entries(pixelData.reflectanceData).map(([band, url]) => (
+                          <li key={band}>
+                            <strong>{band}:</strong>{' '}
+                            <a href={url} target="_blank" rel="noopener noreferrer">
+                              Download {band} Band
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p>No reflectance data available for download.</p>
+                    )}
+                  </>
+                )}
+              </div>
+            ))
+          ) : (
+            <p>No surface reflectance data available for the 3x3 grid.</p>
+          )}
         </div>
       )}
-
 
       {imageryUrl && (
         <div className="nasa-imagery">

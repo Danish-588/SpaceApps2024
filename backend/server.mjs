@@ -30,6 +30,21 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// Utility function to calculate surrounding pixels for a 3x3 grid
+function getSurroundingPixels(latitude, longitude, pixelSize = 0.00027) {
+  // Approximate value for a Landsat pixel in degrees (30m ~ 0.00027 degrees)
+  const offsets = [
+    [-1, -1], [-1, 0], [-1, 1],
+    [0, -1], [0, 0], [0, 1],
+    [1, -1], [1, 0], [1, 1],
+  ];
+
+  return offsets.map(([latOffset, lonOffset]) => ({
+    lat: latitude + latOffset * pixelSize,
+    lon: longitude + lonOffset * pixelSize,
+  }));
+}
+
 // Function to predict the next satellite overpass for multiple satellites
 function predictNextOverpass(lat, lon) {
   const tleLines = [
@@ -148,7 +163,7 @@ async function acquireSurfaceReflectance(scene) {
   return bandUrls;
 }
 
-// Endpoint to analyze Landsat data
+// Endpoint to analyze Landsat data for a 3x3 grid of pixels
 app.post('/api/analyze_landsat', async (req, res) => {
   const { location, cloud_cover, date_range, email, notification_time } = req.body;
 
@@ -174,30 +189,43 @@ app.post('/api/analyze_landsat', async (req, res) => {
     return res.status(404).json({ error: 'Unable to predict next overpass for the given location.' });
   }
 
-  // Fetch Landsat scenes
+  // Calculate surrounding pixels for a 3x3 grid
+  const surroundingPixels = getSurroundingPixels(lat, lon);
+
+  // Fetch Landsat scenes for the 3x3 grid
   const startDate = moment().subtract(30, 'days').format('YYYY-MM-DDT00:00:00Z');
   const endDate = moment().format('YYYY-MM-DDT23:59:59Z');
-  const landsatScenes = await queryLandsatData(lat, lon, [startDate, endDate], cloud_cover);
 
-  if (!landsatScenes || landsatScenes.length === 0) {
-    return res.status(404).json({ error: 'No Landsat scenes found matching the criteria.' });
+  try {
+    const promises = surroundingPixels.map(({ lat, lon }) =>
+      queryLandsatData(lat, lon, [startDate, endDate], cloud_cover)
+    );
+    const landsatScenesList = await Promise.all(promises);
+
+    // Extract metadata and reflectance data for each of the 3x3 grid pixels
+    const gridData = await Promise.all(
+      landsatScenesList.map(async (scenes) => {
+        if (scenes && scenes.length > 0) {
+          const scene = scenes[0];
+          const metadata = acquireSceneMetadata(scene);
+          const reflectanceData = await acquireSurfaceReflectance(scene);
+          return { metadata, reflectanceData };
+        } else {
+          return { error: 'No scene found for this pixel' };
+        }
+      })
+    );
+
+    // Respond with overpass times and reflectance data for the 3x3 grid
+    res.json({
+      location: `${lat}, ${lon}`,
+      overpass_times: overpassTimes,
+      grid_data: gridData,
+    });
+  } catch (error) {
+    console.error('Error fetching data for the 3x3 grid:', error);
+    return res.status(500).json({ error: 'Failed to fetch data for the 3x3 grid.' });
   }
-
-  const selectedScene = landsatScenes[0];
-  const metadata = acquireSceneMetadata(selectedScene);
-  const bandUrls = await acquireSurfaceReflectance(selectedScene);
-
-  if (Object.keys(bandUrls).length === 0) {
-    return res.status(404).json({ error: 'No surface reflectance data available for this scene.' });
-  }
-
-  // Respond with overpass times and reflectance data
-  res.json({
-    location: `${lat}, ${lon}`,
-    overpass_times: overpassTimes,
-    scene_metadata: metadata,
-    reflectance_data: bandUrls,
-  });
 });
 
 // Endpoint to fetch NASA imagery
