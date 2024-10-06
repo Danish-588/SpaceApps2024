@@ -13,18 +13,20 @@ function App() {
 
   // State variables for the API response and error handling
   const [satelliteData, setSatelliteData] = useState(null);
+  const [imageryUrl, setImageryUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Function to handle form submission and make API request
+  // Function to handle form submission and make API requests
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setSatelliteData(null);
+    setImageryUrl(null);
 
     try {
-      // Making a POST request to the backend using fetch
+      // Making a POST request to the backend using fetch for Landsat data analysis
       const response = await fetch('http://localhost:5000/analyze_landsat', {
         method: 'POST',
         headers: {
@@ -34,7 +36,7 @@ function App() {
           location: `${latitude},${longitude}`,
           cloud_cover: cloudCover,
           date_range: 'latest',
-          email: email.trim() ? email : undefined, // Include email only if provided
+          email: email.trim() ? email : undefined,
           notification_time: notificationTime
         })
       });
@@ -47,11 +49,34 @@ function App() {
       setSatelliteData(data); // Set the data in state for rendering
 
       // Set up a browser notification if next overpass is available
-      if (data.next_overpass) {
-        scheduleNotification(data.next_overpass, notificationTime);
+      if (data.overpass_times) {
+        data.overpass_times.forEach(overpass => {
+          if (overpass.next_overpass) {
+            scheduleNotification(overpass.next_overpass, notificationTime, overpass.satellite);
+          }
+        });
       }
+
+      // Fetching NASA imagery for the selected coordinates
+      const imageryResponse = await fetch('http://localhost:5000/fetch_imagery', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          lat: latitude,
+          lon: longitude
+        })
+      });
+
+      if (!imageryResponse.ok) {
+        throw new Error('Failed to fetch imagery. Please try again.');
+      }
+
+      const imageryData = await imageryResponse.json();
+      setImageryUrl(imageryData.imageUrl); // Set the imagery URL for rendering
     } catch (err) {
-      console.error('Error fetching satellite data:', err);
+      console.error('Error fetching data:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -59,14 +84,14 @@ function App() {
   };
 
   // Function to schedule a notification (browser alert)
-  const scheduleNotification = (nextOverpass, hoursBefore) => {
+  const scheduleNotification = (nextOverpass, hoursBefore, satelliteName) => {
     const overpassDate = new Date(nextOverpass);
     const notificationTime = new Date(overpassDate.getTime() - hoursBefore * 60 * 60 * 1000);
     const timeDifference = notificationTime.getTime() - new Date().getTime();
 
     if (timeDifference > 0) {
       setTimeout(() => {
-        alert(`The Landsat satellite will pass over your location in ${hoursBefore} hour(s)!`);
+        alert(`The ${satelliteName} satellite will pass over your location in ${hoursBefore} hour(s)!`);
       }, timeDifference);
     }
   };
@@ -75,8 +100,8 @@ function App() {
   const LocationMarker = () => {
     useMapEvents({
       click(e) {
-        setLatitude(e.latlng.lat.toFixed(6)); // Updated to 6 decimal places for higher precision
-        setLongitude(e.latlng.lng.toFixed(6)); // Updated to 6 decimal places for higher precision
+        setLatitude(e.latlng.lat.toFixed(6));
+        setLongitude(e.latlng.lng.toFixed(6));
       },
     });
 
@@ -100,10 +125,10 @@ function App() {
               onChange={(e) => setLatitude(e.target.value)}
               min="-90"
               max="90"
-              step="0.000001"  // Allows values up to 6 decimal places
+              step="0.000001"
               required
             />
-            <small>Enter a value between -90 and 90, up to 4 decimal places.</small>
+            <small>Enter a value between -90 and 90, up to 6 decimal places.</small>
           </div>
           <div>
             <label>Longitude: </label>
@@ -113,10 +138,10 @@ function App() {
               onChange={(e) => setLongitude(e.target.value)}
               min="-180"
               max="180"
-              step="0.000001"  // Allows values up to 6 decimal places
+              step="0.000001"
               required
             />
-            <small>Enter a value between -180 and 180, up to 4 decimal places.</small>
+            <small>Enter a value between -180 and 180, up to 6 decimal places.</small>
           </div>
           <div>
             <label>Cloud Cover Threshold (%): </label>
@@ -146,14 +171,14 @@ function App() {
               value={notificationTime}
               onChange={(e) => setNotificationTime(e.target.value)}
               min="0.1"
-              step="0.1"  // Allows more flexible values like 0.5, 1.5, etc.
+              step="0.1"
               required
             />
             <small>Enter the number of hours before the overpass to receive a notification.</small>
           </div>
 
           <button type="submit" disabled={loading}>
-            {loading ? 'Loading...' : 'Analyze Landsat Data'}
+            {loading ? 'Loading...' : 'Analyze and Fetch Imagery'}
           </button>
         </form>
 
@@ -177,7 +202,12 @@ function App() {
           <div>
             <h2>Next Satellite Pass Details</h2>
             <p><strong>Location:</strong> {satelliteData.location}</p>
-            <p><strong>Next Overpass Time:</strong> {new Date(satelliteData.next_overpass).toLocaleString()}</p>
+            <h3>Next Overpasses:</h3>
+            {satelliteData.overpass_times.map(overpass => (
+              <p key={overpass.satellite}>
+                <strong>{overpass.satellite}:</strong> {overpass.next_overpass ? new Date(overpass.next_overpass).toLocaleString() : 'No upcoming overpass.'}
+              </p>
+            ))}
             {satelliteData.scene_metadata && (
               <>
                 <h3>Scene Metadata</h3>
@@ -189,7 +219,9 @@ function App() {
               </>
             )}
             <h3>Surface Reflectance Data</h3>
-            <p>Select and download reflectance bands to analyze data for your region of interest:</p>
+            <p>
+              Note: To download the reflectance data, you need to create an account and log in at <a href="https://ers.cr.usgs.gov" target="_blank" rel="noopener noreferrer">USGS Earth Resources Observation and Science (EROS)</a>.
+            </p>
             {satelliteData.reflectance_data ? (
               <ul>
                 {Object.entries(satelliteData.reflectance_data).map(([band, url]) => (
@@ -204,6 +236,14 @@ function App() {
             ) : (
               <p>No reflectance data available.</p>
             )}
+          </div>
+        )}
+
+        {/* Display NASA imagery */}
+        {imageryUrl && (
+          <div>
+            <h2>NASA Imagery</h2>
+            <img src={imageryUrl} alt="NASA Satellite Imagery" style={{ maxWidth: '100%', marginTop: '20px' }} />
           </div>
         )}
       </header>
