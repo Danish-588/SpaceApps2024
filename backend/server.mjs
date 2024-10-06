@@ -35,8 +35,8 @@ function predictNextOverpass(lat, lon) {
     const tleLines = [
         {
             name: 'Landsat 8',
-            tleLine1: '1 43013U 17073A   20334.91667824  .00000023  00000-0  00000+0 0  9994',
-            tleLine2: '2 43013  97.7421  34.8470 0001432  91.5763 268.5523 14.57178936188308'
+            tleLine1: process.env.TLE_LINE1,
+            tleLine2: process.env.TLE_LINE2
         },
         {
             name: 'Landsat 9',
@@ -115,7 +115,7 @@ function acquireSceneMetadata(scene) {
 }
 
 // Function to acquire surface reflectance data
-function acquireSurfaceReflectance(scene) {
+async function acquireSurfaceReflectance(scene) {
     const bandMapping = {
         'SR_B1': 'coastal', 'SR_B2': 'blue', 'SR_B3': 'green', 'SR_B4': 'red',
         'SR_B5': 'nir08', 'SR_B6': 'swir16', 'SR_B7': 'swir22'
@@ -124,7 +124,16 @@ function acquireSurfaceReflectance(scene) {
 
     for (const [srBand, assetKey] of Object.entries(bandMapping)) {
         if (scene.assets[assetKey]) {
-            bandUrls[srBand] = scene.assets[assetKey].href;
+            const url = scene.assets[assetKey].href;
+            const response = await axios.get(url, {
+                headers: {
+                    'Authorization': `Bearer ${process.env.USGS_API_TOKEN}`
+                }
+            });
+
+            if (response.status === 200) {
+                bandUrls[srBand] = url;
+            }
         }
     }
 
@@ -199,7 +208,7 @@ app.post('/analyze_landsat', async (req, res) => {
 
     const selectedScene = landsatScenes[0];
     const metadata = acquireSceneMetadata(selectedScene);
-    const bandUrls = acquireSurfaceReflectance(selectedScene);
+    const bandUrls = await acquireSurfaceReflectance(selectedScene);
 
     if (Object.keys(bandUrls).length === 0) {
         return res.status(404).json({ error: 'No surface reflectance data available for this scene.' });
