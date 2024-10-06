@@ -22,18 +22,18 @@ const geocoder = NodeGeocoder({
 
 // Function to predict the next satellite overpass for multiple satellites
 function predictNextOverpass(lat, lon) {
-    const tleLines = [
-        {
-            name: 'Landsat 8',
-            tleLine1: process.env.TLE_LINE1,
-            tleLine2: process.env.TLE_LINE2
-        },
-        {
-            name: 'Landsat 9',
-            tleLine1: '1 49577U 21093A   21267.58993056  .00000023  00000-0  00000+0 0  9998',
-            tleLine2: '2 49577  97.7016  55.7332 0001991  95.1893 265.0077 14.57178936188328'
-        }
-    ];
+  const tleLines = [
+    {
+      name: 'Landsat 8',
+      tleLine1: process.env.TLE_LINE1,
+      tleLine2: process.env.TLE_LINE2
+    },
+    {
+      name: 'Landsat 9',
+      tleLine1: '1 49577U 21093A   21267.58993056  .00000023  00000-0  00000+0 0  9998',
+      tleLine2: '2 49577  97.7016  55.7332 0001991  95.1893 265.0077 14.57178936188328'
+    }
+  ];
 
   const overpassTimes = [];
 
@@ -71,6 +71,57 @@ function predictNextOverpass(lat, lon) {
   return overpassTimes;
 }
 
+// Function to query Landsat data
+async function queryLandsatData(lat, lon, dateRange, cloudCover) {
+  try {
+    const stacServer = process.env.STAC_SERVER_URL;
+    const response = await axios.post(`${stacServer}/search`, {
+      intersects: {
+        type: "Point",
+        coordinates: [lon, lat]
+      },
+      datetime: `${dateRange[0]}/${dateRange[1]}`,
+      collections: ["landsat-c2l2-sr"],
+      query: { "eo:cloud_cover": { "lt": cloudCover } }
+    });
+
+    return response.data.features; // Return matching scenes
+  } catch (error) {
+    console.error('Error fetching Landsat data:', error);
+    return null;
+  }
+}
+
+// Function to extract scene metadata
+function acquireSceneMetadata(scene) {
+  return {
+    acquisition_date: scene.properties.datetime,
+    cloud_cover: scene.properties['eo:cloud_cover'],
+    satellite: scene.properties.platform,
+    path: scene.properties['landsat:wrs_path'],
+    row: scene.properties['landsat:wrs_row'],
+    quality: scene.properties['landsat:quality']
+  };
+}
+
+// Function to acquire surface reflectance data
+async function acquireSurfaceReflectance(scene) {
+  const bandMapping = {
+    'SR_B1': 'coastal', 'SR_B2': 'blue', 'SR_B3': 'green', 'SR_B4': 'red',
+    'SR_B5': 'nir08', 'SR_B6': 'swir16', 'SR_B7': 'swir22'
+  };
+  const bandUrls = {};
+
+  for (const [srBand, assetKey] of Object.entries(bandMapping)) {
+    if (scene.assets[assetKey]) {
+      const url = scene.assets[assetKey].href;
+      bandUrls[srBand] = url;
+    }
+  }
+
+  return bandUrls;
+}
+
 // Endpoint to analyze Landsat data
 app.post('/api/analyze_landsat', async (req, res) => {
   const { location, cloud_cover, date_range, email, notification_time } = req.body;
@@ -96,9 +147,24 @@ app.post('/api/analyze_landsat', async (req, res) => {
     return res.status(404).json({ error: 'Unable to predict next overpass for the given location.' });
   }
 
+  // Fetch Landsat scenes
+  const startDate = moment().subtract(30, 'days').format('YYYY-MM-DDT00:00:00Z');
+  const endDate = moment().format('YYYY-MM-DDT23:59:59Z');
+  const landsatScenes = await queryLandsatData(lat, lon, [startDate, endDate], cloud_cover);
+
+  if (!landsatScenes || landsatScenes.length === 0) {
+    return res.status(404).json({ error: 'No Landsat scenes found matching the criteria.' });
+  }
+
+  const selectedScene = landsatScenes[0];
+  const metadata = acquireSceneMetadata(selectedScene);
+  const bandUrls = await acquireSurfaceReflectance(selectedScene);
+
   res.json({
     location: `${lat}, ${lon}`,
-    overpass_times: overpassTimes
+    overpass_times: overpassTimes,
+    scene_metadata: metadata,
+    reflectance_data: bandUrls
   });
 });
 

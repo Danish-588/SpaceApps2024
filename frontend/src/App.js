@@ -189,29 +189,47 @@ function Home() {
       {error && <p className="error-text">{error}</p>}
 
       {satelliteData && (
-        <div className="satellite-data">
-          <h2>Next Satellite Pass Details</h2>
-          <p><strong>Location:</strong> {satelliteData.location}</p>
-          <h3>Next Overpasses:</h3>
-          {satelliteData.overpass_times.length > 0 ? (
-            satelliteData.overpass_times.map((overpass, index) => (
-              <div key={index} className="overpass-details">
-                <p>
-                  <strong>Satellite:</strong> {overpass.satellite}
-                </p>
-                <p>
-                  <strong>Next Overpass:</strong>{' '}
-                  {overpass.next_overpass
-                    ? new Date(overpass.next_overpass).toLocaleString()
-                    : 'No upcoming overpass.'}
-                </p>
-              </div>
-            ))
-          ) : (
-            <p>No upcoming overpasses found for the selected location.</p>
-          )}
+  <div className="satellite-data">
+    <h2>Next Satellite Pass Details</h2>
+    <p><strong>Location:</strong> {satelliteData.location}</p>
+    <h3>Next Overpasses:</h3>
+    {satelliteData.overpass_times.length > 0 ? (
+      satelliteData.overpass_times.map((overpass, index) => (
+        <div key={index} className="overpass-details">
+          <p>
+            <strong>Satellite:</strong> {overpass.satellite}
+          </p>
+          <p>
+            <strong>Next Overpass:</strong>{' '}
+            {overpass.next_overpass
+              ? new Date(overpass.next_overpass).toLocaleString()
+              : 'No upcoming overpass.'}
+          </p>
         </div>
-      )}
+      ))
+    ) : (
+      <p>No upcoming overpasses found for the selected location.</p>
+    )}
+
+    {/* Surface Reflectance Data Section */}
+    <h3>Surface Reflectance Data</h3>
+    {satelliteData.reflectance_data && Object.keys(satelliteData.reflectance_data).length > 0 ? (
+      <ul>
+        {Object.entries(satelliteData.reflectance_data).map(([band, url]) => (
+          <li key={band}>
+            <strong>{band}:</strong>{' '}
+            <a href={url} target="_blank" rel="noopener noreferrer">
+              Download {band} Band
+            </a>
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <p>No surface reflectance data available for download.</p>
+    )}
+  </div>
+)}
+
 
       {imageryUrl && (
         <div className="nasa-imagery">
