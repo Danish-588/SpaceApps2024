@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import './App.css';
+import Plot from 'react-plotly.js';
+import Papa from 'papaparse';
 
 function App() {
   // State variables for input fields
@@ -10,10 +12,9 @@ function App() {
   const [cloudCover, setCloudCover] = useState(70);
   const [notificationTime, setNotificationTime] = useState(1); // Time in hours before overpass
   const [email, setEmail] = useState(''); // State to store user email
-
-  // State variables for the API response and error handling
   const [satelliteData, setSatelliteData] = useState(null);
   const [imageryUrl, setImageryUrl] = useState(null);
+  const [groundData, setGroundData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -110,6 +111,34 @@ function App() {
     ) : null;
   };
 
+  // Function to handle CSV upload
+  const handleCSVUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      Papa.parse(file, {
+        header: true,
+        complete: (result) => {
+          setGroundData(result.data);
+        },
+        error: (error) => {
+          setError(`Failed to parse CSV file: ${error.message}`);
+        }
+      });
+    }
+  };
+
+  // Function to calculate NDVI from ground data
+  const calculateNDVI = (data) => {
+    return data.map((entry) => {
+      const red = parseFloat(entry['Red Reflectance (Band 4)']);
+      const nir = parseFloat(entry['NIR Reflectance (Band 5)']);
+      return {
+        ...entry,
+        NDVI: (nir - red) / (nir + red)
+      };
+    });
+  };
+
   return (
     <div className="App">
       <header className="App-header">
@@ -182,13 +211,19 @@ function App() {
           </button>
         </form>
 
+        {/* CSV Upload for Ground Data */}
+        <div style={{ marginTop: '20px' }}>
+          <label>Upload Ground Data (CSV): </label>
+          <input type="file" accept=".csv" onChange={handleCSVUpload} />
+        </div>
+
         {/* Map Container for selecting latitude and longitude */}
         <div className="map-container" style={{ height: '400px', width: '100%', margin: '20px 0' }}>
           <MapContainer center={[0, 0]} zoom={2} style={{ height: '100%', width: '100%' }}>
-          <TileLayer
-            url="https://tiles.stadiamaps.com/tiles/osm_bright/{z}/{x}/{y}{r}.png"
-            attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a>, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          />
+            <TileLayer
+              url="https://tiles.stadiamaps.com/tiles/osm_bright/{z}/{x}/{y}{r}.png"
+              attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a>, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            />
             <LocationMarker />
           </MapContainer>
           <small>Click on the map to set latitude and longitude values automatically.</small>
@@ -244,6 +279,43 @@ function App() {
           <div>
             <h2>NASA Imagery</h2>
             <img src={imageryUrl} alt="NASA Satellite Imagery" style={{ maxWidth: '100%', marginTop: '20px' }} />
+          </div>
+        )}
+
+        {/* Plot Landsat data bands if available */}
+        {satelliteData && satelliteData.reflectance_data && (
+          <div>
+            <h2>Reflectance Band Analysis</h2>
+            <Plot
+              data={Object.entries(satelliteData.reflectance_data).map(([band, url]) => ({
+                x: [satelliteData.scene_metadata.acquisition_date],
+                y: [Math.random()], // Placeholder value, replace with actual reflectance data
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: band
+              }))}
+              layout={{ title: 'Reflectance Bands' }}
+            />
+          </div>
+        )}
+
+        {/* Compare ground data and visualize NDVI */}
+        {groundData && (
+          <div>
+            <h2>Ground-Based Observations Analysis</h2>
+            <h3>NDVI Calculation</h3>
+            <Plot
+              data={[
+                {
+                  x: groundData.map(entry => `${entry.Date} ${entry.Time}`),
+                  y: calculateNDVI(groundData).map(entry => entry.NDVI),
+                  type: 'scatter',
+                  mode: 'lines+markers',
+                  name: 'NDVI (Ground Data)'
+                }
+              ]}
+              layout={{ title: 'NDVI Over Time (Ground Data)' }}
+            />
           </div>
         )}
       </header>
