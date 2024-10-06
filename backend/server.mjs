@@ -5,6 +5,7 @@ import satellite from 'satellite.js';
 import cors from 'cors';
 import moment from 'moment';
 import dotenv from 'dotenv';
+import nodemailer from 'nodemailer';
 
 dotenv.config(); // Load environment variables
 
@@ -17,7 +18,16 @@ app.use(express.json());
 
 // Set up geocoder
 const geocoder = NodeGeocoder({
-  provider: 'openstreetmap'
+  provider: 'openstreetmap',
+});
+
+// Set up Nodemailer
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
 });
 
 // Function to predict the next satellite overpass for multiple satellites
@@ -26,19 +36,22 @@ function predictNextOverpass(lat, lon) {
     {
       name: 'Landsat 8',
       tleLine1: process.env.TLE_LINE1,
-      tleLine2: process.env.TLE_LINE2
+      tleLine2: process.env.TLE_LINE2,
     },
     {
       name: 'Landsat 9',
       tleLine1: '1 49577U 21093A   21267.58993056  .00000023  00000-0  00000+0 0  9998',
-      tleLine2: '2 49577  97.7016  55.7332 0001991  95.1893 265.0077 14.57178936188328'
-    }
+      tleLine2: '2 49577  97.7016  55.7332 0001991  95.1893 265.0077 14.57178936188328',
+    },
   ];
 
   const overpassTimes = [];
 
-  tleLines.forEach(satelliteInfo => {
-    const satrec = satellite.twoline2satrec(satelliteInfo.tleLine1, satelliteInfo.tleLine2);
+  tleLines.forEach((satelliteInfo) => {
+    const satrec = satellite.twoline2satrec(
+      satelliteInfo.tleLine1,
+      satelliteInfo.tleLine2
+    );
     let currentTime = new Date();
     let nextOverpassTime = null;
 
@@ -64,7 +77,7 @@ function predictNextOverpass(lat, lon) {
 
     overpassTimes.push({
       satellite: satelliteInfo.name,
-      next_overpass: nextOverpassTime
+      next_overpass: nextOverpassTime,
     });
   });
 
@@ -77,12 +90,12 @@ async function queryLandsatData(lat, lon, dateRange, cloudCover) {
     const stacServer = process.env.STAC_SERVER_URL;
     const response = await axios.post(`${stacServer}/search`, {
       intersects: {
-        type: "Point",
-        coordinates: [lon, lat]
+        type: 'Point',
+        coordinates: [lon, lat],
       },
       datetime: `${dateRange[0]}/${dateRange[1]}`,
-      collections: ["landsat-c2l2-sr"],
-      query: { "eo:cloud_cover": { "lt": cloudCover } }
+      collections: ['landsat-c2l2-sr'],
+      query: { 'eo:cloud_cover': { lt: cloudCover } },
     });
 
     return response.data.features; // Return matching scenes
@@ -100,22 +113,35 @@ function acquireSceneMetadata(scene) {
     satellite: scene.properties.platform,
     path: scene.properties['landsat:wrs_path'],
     row: scene.properties['landsat:wrs_row'],
-    quality: scene.properties['landsat:quality']
+    quality: scene.properties['landsat:quality'],
   };
 }
 
 // Function to acquire surface reflectance data
 async function acquireSurfaceReflectance(scene) {
   const bandMapping = {
-    'SR_B1': 'coastal', 'SR_B2': 'blue', 'SR_B3': 'green', 'SR_B4': 'red',
-    'SR_B5': 'nir08', 'SR_B6': 'swir16', 'SR_B7': 'swir22'
+    SR_B1: 'coastal',
+    SR_B2: 'blue',
+    SR_B3: 'green',
+    SR_B4: 'red',
+    SR_B5: 'nir08',
+    SR_B6: 'swir16',
+    SR_B7: 'swir22',
   };
   const bandUrls = {};
 
   for (const [srBand, assetKey] of Object.entries(bandMapping)) {
     if (scene.assets[assetKey]) {
       const url = scene.assets[assetKey].href;
-      bandUrls[srBand] = url;
+      const response = await axios.get(url, {
+        headers: {
+          Authorization: `Bearer ${process.env.USGS_API_TOKEN}`,
+        },
+      });
+
+      if (response.status === 200) {
+        bandUrls[srBand] = url;
+      }
     }
   }
 
@@ -130,7 +156,7 @@ app.post('/api/analyze_landsat', async (req, res) => {
 
   try {
     if (location.includes(',')) {
-      [lat, lon] = location.split(',').map(coord => parseFloat(coord.trim()));
+      [lat, lon] = location.split(',').map((coord) => parseFloat(coord.trim()));
     } else {
       const geoRes = await geocoder.geocode(location);
       if (geoRes.length === 0) return res.status(400).json({ error: 'Invalid location' });
@@ -141,6 +167,7 @@ app.post('/api/analyze_landsat', async (req, res) => {
     return res.status(400).json({ error: 'Invalid location format' });
   }
 
+  // Predict the next satellite overpass for both Landsat satellites
   const overpassTimes = predictNextOverpass(lat, lon);
 
   if (!overpassTimes || overpassTimes.length === 0) {
@@ -160,11 +187,16 @@ app.post('/api/analyze_landsat', async (req, res) => {
   const metadata = acquireSceneMetadata(selectedScene);
   const bandUrls = await acquireSurfaceReflectance(selectedScene);
 
+  if (Object.keys(bandUrls).length === 0) {
+    return res.status(404).json({ error: 'No surface reflectance data available for this scene.' });
+  }
+
+  // Respond with overpass times and reflectance data
   res.json({
     location: `${lat}, ${lon}`,
     overpass_times: overpassTimes,
     scene_metadata: metadata,
-    reflectance_data: bandUrls
+    reflectance_data: bandUrls,
   });
 });
 
@@ -180,11 +212,11 @@ app.post('/api/fetch_imagery', async (req, res) => {
       params: {
         lon,
         lat,
-        date: '2023-10-01',
+        date: '2023-10-01', // You can make this dynamic or remove it to get the latest
         cloud_score: true,
         dim: 0.1,
-        api_key: apiKey
-      }
+        api_key: apiKey,
+      },
     });
 
     if (response.status !== 200) {
