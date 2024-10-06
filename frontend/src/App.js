@@ -27,7 +27,7 @@ function App() {
 
     try {
       // Making a POST request to the backend using fetch for Landsat data analysis
-      const response = await fetch('http://localhost:5000/analyze_landsat', {
+      const response = await fetch(/api/analyze_landsat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -58,7 +58,7 @@ function App() {
       }
 
       // Fetching NASA imagery for the selected coordinates
-      const imageryResponse = await fetch('http://localhost:5000/fetch_imagery', {
+      const imageryResponse = await fetch(/api/fetch_imagery', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
