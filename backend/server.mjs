@@ -22,13 +22,18 @@ const geocoder = NodeGeocoder({
 
 // Function to predict the next satellite overpass for multiple satellites
 function predictNextOverpass(lat, lon) {
-  const tleLines = [
-    {
-      name: 'Landsat 8',
-      tleLine1: '1 43013U 17073A   20334.91667824  .00000023  00000-0  00000+0 0  9994',
-      tleLine2: '2 43013  97.7421  34.8470 0001432  91.5763 268.5523 14.57178936188308'
-    }
-  ];
+    const tleLines = [
+        {
+            name: 'Landsat 8',
+            tleLine1: process.env.TLE_LINE1,
+            tleLine2: process.env.TLE_LINE2
+        },
+        {
+            name: 'Landsat 9',
+            tleLine1: '1 49577U 21093A   21267.58993056  .00000023  00000-0  00000+0 0  9998',
+            tleLine2: '2 49577  97.7016  55.7332 0001991  95.1893 265.0077 14.57178936188328'
+        }
+    ];
 
   const overpassTimes = [];
 

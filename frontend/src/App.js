@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
+import { Container, Navbar, Nav, Tab, Tabs } from 'react-bootstrap';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
-import 'bootstrap/dist/css/bootstrap.min.css';
-import { ClipLoader } from 'react-spinners';
-import { Navbar, Nav, Container, Button, Form } from 'react-bootstrap';
-import 'bootstrap/dist/css/bootstrap.min.css';
 
 function App() {
   // State variables for input fields
@@ -31,7 +29,7 @@ function App() {
 
     try {
       // Making a POST request to the backend using fetch for Landsat data analysis
-      const response = await fetch('http://localhost:5000/api/analyze_landsat', {
+      const response = await fetch('/api/analyze_landsat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -46,15 +44,14 @@ function App() {
       });
 
       if (!response.ok) {
-        const errorMessage = await response.text();
-        throw new Error(`Failed to fetch satellite data. Status: ${response.status}, Details: ${errorMessage}`);
+        throw new Error('Failed to fetch satellite data. Please try again.');
       }
 
       const data = await response.json();
       setSatelliteData(data); // Set the data in state for rendering
 
       // Fetching NASA imagery for the selected coordinates
-      const imageryResponse = await fetch('http://localhost:5000/api/fetch_imagery', {
+      const imageryResponse = await fetch('/api/fetch_imagery', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -66,8 +63,7 @@ function App() {
       });
 
       if (!imageryResponse.ok) {
-        const errorMessage = await imageryResponse.text();
-        throw new Error(`Failed to fetch imagery. Status: ${imageryResponse.status}, Details: ${errorMessage}`);
+        throw new Error('Failed to fetch imagery. Please try again.');
       }
 
       const imageryData = await imageryResponse.json();
@@ -84,8 +80,17 @@ function App() {
   const LocationMarker = () => {
     useMapEvents({
       click(e) {
-        setLatitude(e.latlng.lat.toFixed(6));
-        setLongitude(e.latlng.lng.toFixed(6));
+        let lat = e.latlng.lat.toFixed(6);
+        let lon = e.latlng.lng.toFixed(6);
+
+        // Restrict latitude and longitude to their valid ranges
+        if (lat < -90) lat = -90;
+        if (lat > 90) lat = 90;
+        if (lon < -180) lon = -180;
+        if (lon > 180) lon = 180;
+
+        setLatitude(lat);
+        setLongitude(lon);
       },
     });
 
@@ -96,133 +101,176 @@ function App() {
 
   return (
     <div className="App">
-      <Navbar bg="dark" variant="dark" expand="lg" sticky="top">
+      <Navbar bg="dark" variant="dark" expand="lg">
         <Container>
           <Navbar.Brand href="#home">Landsat Analysis Tool</Navbar.Brand>
           <Navbar.Toggle aria-controls="basic-navbar-nav" />
           <Navbar.Collapse id="basic-navbar-nav">
             <Nav className="me-auto">
-              <Nav.Link href="#analyze">Analyze Data</Nav.Link>
+              <Nav.Link href="#home">Home</Nav.Link>
+              <Nav.Link href="#landsat-info">Landsat Info</Nav.Link>
               <Nav.Link href="#reminders">Reminders</Nav.Link>
-              <Nav.Link href="#about">About Landsat</Nav.Link>
             </Nav>
           </Navbar.Collapse>
         </Container>
       </Navbar>
 
-      <Container className="mt-5">
-        <h1 className="mb-4">Landsat Satellite Data Analysis</h1>
+      <Container>
+        <Tabs defaultActiveKey="home" id="app-tabs" className="mb-3">
+          <Tab eventKey="home" title="Home">
+            <header className="App-header">
+              <h1>Landsat Analysis Tool</h1>
+              <p>Analyze Landsat satellite data and receive notifications for upcoming satellite passes.</p>
 
-        {/* Form for user input */}
-        <Form onSubmit={handleSubmit}>
-          <Form.Group className="mb-3">
-            <Form.Label>Latitude:</Form.Label>
-            <Form.Control
-              type="number"
-              value={latitude}
-              onChange={(e) => setLatitude(e.target.value)}
-              min="-90"
-              max="90"
-              step="0.000001"
-              required
-            />
-            <Form.Text>Enter a value between -90 and 90, up to 6 decimal places.</Form.Text>
-          </Form.Group>
-          <Form.Group className="mb-3">
-            <Form.Label>Longitude:</Form.Label>
-            <Form.Control
-              type="number"
-              value={longitude}
-              onChange={(e) => setLongitude(e.target.value)}
-              min="-180"
-              max="180"
-              step="0.000001"
-              required
-            />
-            <Form.Text>Enter a value between -180 and 180, up to 6 decimal places.</Form.Text>
-          </Form.Group>
-          <Form.Group className="mb-3">
-            <Form.Label>Cloud Cover Threshold (%):</Form.Label>
-            <Form.Control
-              type="number"
-              value={cloudCover}
-              onChange={(e) => setCloudCover(e.target.value)}
-              min="0"
-              max="100"
-              required
-            />
-            <Form.Text>Enter a value between 0 and 100 to set cloud cover threshold.</Form.Text>
-          </Form.Group>
-          <Form.Group className="mb-3">
-            <Form.Label>Email (optional):</Form.Label>
-            <Form.Control
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            <Form.Text>Enter your email address if you want to receive notifications.</Form.Text>
-          </Form.Group>
-          <Form.Group className="mb-3">
-            <Form.Label>Notify Me Before Overpass (Hours):</Form.Label>
-            <Form.Control
-              type="number"
-              value={notificationTime}
-              onChange={(e) => setNotificationTime(e.target.value)}
-              min="0.1"
-              step="0.1"
-              required
-            />
-            <Form.Text>Enter the number of hours before the overpass to receive a notification.</Form.Text>
-          </Form.Group>
+              {/* Form for user input */}
+              <form onSubmit={handleSubmit} className="input-form">
+                <div className="form-group">
+                  <label>Latitude:</label>
+                  <input
+                    type="number"
+                    value={latitude}
+                    onChange={(e) => setLatitude(e.target.value)}
+                    min="-90"
+                    max="90"
+                    step="0.000001"
+                    required
+                  />
+                  <small>Enter a value between -90 and 90, up to 6 decimal places.</small>
+                </div>
+                <div className="form-group">
+                  <label>Longitude:</label>
+                  <input
+                    type="number"
+                    value={longitude}
+                    onChange={(e) => setLongitude(e.target.value)}
+                    min="-180"
+                    max="180"
+                    step="0.000001"
+                    required
+                  />
+                  <small>Enter a value between -180 and 180, up to 6 decimal places.</small>
+                </div>
+                <div className="form-group">
+                  <label>Cloud Cover Threshold (%):</label>
+                  <input
+                    type="number"
+                    value={cloudCover}
+                    onChange={(e) => setCloudCover(e.target.value)}
+                    min="0"
+                    max="100"
+                    required
+                  />
+                  <small>Enter a value between 0 and 100 to set the cloud cover threshold.</small>
+                </div>
+                <div className="form-group">
+                  <label>Email (optional):</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                  <small>Enter your email address to receive notifications.</small>
+                </div>
+                <div className="form-group">
+                  <label>Notify Me Before Overpass (Hours):</label>
+                  <input
+                    type="number"
+                    value={notificationTime}
+                    onChange={(e) => setNotificationTime(e.target.value)}
+                    min="0.1"
+                    step="0.1"
+                    required
+                  />
+                  <small>Enter the number of hours before the overpass to receive a notification.</small>
+                </div>
 
-          <Button variant="primary" type="submit" disabled={loading}>
-            {loading ? <ClipLoader size={24} color={"#ffffff"} /> : 'Analyze and Fetch Imagery'}
-          </Button>
-        </Form>
+                <button type="submit" className="btn btn-primary" disabled={loading}>
+                  {loading ? 'Loading...' : 'Analyze and Fetch Imagery'}
+                </button>
+              </form>
 
-        {/* Display the loader if loading */}
-        {loading && (
-          <div className="loader-container mt-4">
-            <ClipLoader size={150} color={"#3498db"} loading={loading} />
-          </div>
-        )}
+              {/* Map Container for selecting latitude and longitude */}
+              <div className="map-container">
+                <MapContainer
+                  center={[0, 0]}
+                  zoom={2}
+                  minZoom={2}
+                  maxBounds={[
+                    [-90, -180],
+                    [90, 180],
+                  ]}
+                  maxBoundsViscosity={1.0}
+                  style={{ height: '400px', width: '100%' }}
+                >
+                  <TileLayer
+                    url="https://tiles.stadiamaps.com/tiles/osm_bright/{z}/{x}/{y}{r}.png?api_key=STADIA_API_KEY"
+                    attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a>, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  />
+                  <LocationMarker />
+                </MapContainer>
+                <small>Click on the map to set latitude and longitude values automatically.</small>
+              </div>
 
-        {/* Map Container for selecting latitude and longitude */}
-        <div className="map-container mt-4">
-          <MapContainer center={[0, 0]} zoom={2} style={{ height: '400px', width: '100%' }}>
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution='&copy; <a href="https://openstreetmap.org">OpenStreetMap</a> contributors'
-            />
-            <LocationMarker />
-          </MapContainer>
-          <small>Click on the map to set latitude and longitude values automatically.</small>
-        </div>
+              {/* Display any error messages */}
+              {error && <p className="error-text">{error}</p>}
 
-        {/* Display any error messages */}
-        {error && <p style={{ color: 'red' }} className="mt-4">{error}</p>}
+              {/* Display the satellite data if available */}
+              {satelliteData && (
+                <div className="satellite-data">
+                  <h2>Next Satellite Pass Details</h2>
+                  <p><strong>Location:</strong> {satelliteData.location}</p>
+                  <h3>Next Overpasses:</h3>
+                  {satelliteData.overpass_times.length > 0 ? (
+                    satelliteData.overpass_times.map((overpass, index) => (
+                      <div key={index} className="overpass-details">
+                        <p>
+                          <strong>Satellite:</strong> {overpass.satellite}
+                        </p>
+                        <p>
+                          <strong>Next Overpass:</strong>{' '}
+                          {overpass.next_overpass
+                            ? new Date(overpass.next_overpass).toLocaleString()
+                            : 'No upcoming overpass.'}
+                        </p>
+                      </div>
+                    ))
+                  ) : (
+                    <p>No upcoming overpasses found for the selected location.</p>
+                  )}
+                </div>
+              )}
 
-        {/* Display the satellite data if available */}
-        {satelliteData && (
-          <div className="mt-4">
-            <h2>Next Satellite Pass Details</h2>
-            <p><strong>Location:</strong> {satelliteData.location}</p>
-            <h3>Next Overpasses:</h3>
-            {satelliteData.overpass_times.map(overpass => (
-              <p key={overpass.satellite}>
-                <strong>{overpass.satellite}:</strong> {overpass.next_overpass ? new Date(overpass.next_overpass).toLocaleString() : 'No upcoming overpass.'}
+              {/* Display NASA imagery */}
+              {imageryUrl && (
+                <div className="nasa-imagery">
+                  <h2>NASA Imagery</h2>
+                  <img src={imageryUrl} alt="NASA Satellite Imagery" style={{ maxWidth: '100%', marginTop: '20px' }} />
+                </div>
+              )}
+            </header>
+          </Tab>
+          <Tab eventKey="landsat-info" title="Landsat Info">
+            <div className="landsat-info">
+              <h2>About Landsat</h2>
+              <p>
+                The Landsat program is a series of Earth-observing satellite missions jointly managed by NASA and the U.S. Geological Survey (USGS).
+                Since 1972, Landsat satellites have continuously gathered data about the Earth's surface, providing critical information for monitoring and managing land resources.
               </p>
-            ))}
-          </div>
-        )}
-
-        {/* Display NASA imagery */}
-        {imageryUrl && (
-          <div className="mt-4">
-            <h2>NASA Imagery</h2>
-            <img src={imageryUrl} alt="NASA Satellite Imagery" className="img-fluid mt-3" />
-          </div>
-        )}
+              <p>
+                Landsat data is widely used in agriculture, forestry, geology, and land use planning. It is a vital resource for understanding climate change, deforestation,
+                urban expansion, and disaster response.
+              </p>
+            </div>
+          </Tab>
+          <Tab eventKey="reminders" title="Reminders">
+            <div className="reminders">
+              <h2>Satellite Overpass Reminders</h2>
+              <p>
+                Set reminders to be notified when a Landsat satellite is about to pass over your selected location. You will receive a notification based on the time you specify before the overpass.
+              </p>
+            </div>
+          </Tab>
+        </Tabs>
       </Container>
     </div>
   );
