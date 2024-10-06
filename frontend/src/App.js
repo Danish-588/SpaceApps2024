@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 import './App.css';
 
 function App() {
@@ -16,10 +18,10 @@ function App() {
 
   // Function to handle form submission and make API request
   const handleSubmit = async (e) => {
-    e.preventDefault();  // Prevent default form submission behavior
-    setLoading(true);    // Set loading state to true
-    setError(null);      // Clear any previous errors
-    setSatelliteData(null);  // Clear previous data
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setSatelliteData(null);
 
     try {
       // Making a POST request to the backend using fetch
@@ -32,7 +34,7 @@ function App() {
           location: `${latitude},${longitude}`,
           cloud_cover: cloudCover,
           date_range: 'latest',
-          email: email || undefined,  // Include email only if provided
+          email: email.trim() ? email : undefined, // Include email only if provided
           notification_time: notificationTime
         })
       });
@@ -52,7 +54,7 @@ function App() {
       console.error('Error fetching satellite data:', err);
       setError(err.message);
     } finally {
-      setLoading(false);  // Set loading state to false after the request completes
+      setLoading(false);
     }
   };
 
@@ -60,16 +62,27 @@ function App() {
   const scheduleNotification = (nextOverpass, hoursBefore) => {
     const overpassDate = new Date(nextOverpass);
     const notificationTime = new Date(overpassDate.getTime() - hoursBefore * 60 * 60 * 1000);
-
-    // Calculate time difference in milliseconds
     const timeDifference = notificationTime.getTime() - new Date().getTime();
 
     if (timeDifference > 0) {
-      // Use setTimeout to show a notification at the scheduled time
       setTimeout(() => {
         alert(`The Landsat satellite will pass over your location in ${hoursBefore} hour(s)!`);
       }, timeDifference);
     }
+  };
+
+  // Custom Map component to update latitude and longitude
+  const LocationMarker = () => {
+    useMapEvents({
+      click(e) {
+        setLatitude(e.latlng.lat.toFixed(6)); // Updated to 6 decimal places for higher precision
+        setLongitude(e.latlng.lng.toFixed(6)); // Updated to 6 decimal places for higher precision
+      },
+    });
+
+    return latitude && longitude ? (
+      <Marker position={[latitude, longitude]}></Marker>
+    ) : null;
   };
 
   return (
@@ -85,8 +98,12 @@ function App() {
               type="number"
               value={latitude}
               onChange={(e) => setLatitude(e.target.value)}
+              min="-90"
+              max="90"
+              step="0.000001"  // Allows values up to 6 decimal places
               required
             />
+            <small>Enter a value between -90 and 90, up to 4 decimal places.</small>
           </div>
           <div>
             <label>Longitude: </label>
@@ -94,8 +111,12 @@ function App() {
               type="number"
               value={longitude}
               onChange={(e) => setLongitude(e.target.value)}
+              min="-180"
+              max="180"
+              step="0.000001"  // Allows values up to 6 decimal places
               required
             />
+            <small>Enter a value between -180 and 180, up to 4 decimal places.</small>
           </div>
           <div>
             <label>Cloud Cover Threshold (%): </label>
@@ -107,6 +128,7 @@ function App() {
               max="100"
               required
             />
+            <small>Enter a value between 0 and 100 to set cloud cover threshold.</small>
           </div>
           <div>
             <label>Email (optional): </label>
@@ -115,6 +137,7 @@ function App() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
+            <small>Enter your email address if you want to receive notifications.</small>
           </div>
           <div>
             <label>Notify Me Before Overpass (Hours): </label>
@@ -122,16 +145,29 @@ function App() {
               type="number"
               value={notificationTime}
               onChange={(e) => setNotificationTime(e.target.value)}
-              min="0"
-              step="0.01"  // Allow more flexible values like 0.5, 1.5, etc.
+              min="0.1"
+              step="0.1"  // Allows more flexible values like 0.5, 1.5, etc.
               required
             />
+            <small>Enter the number of hours before the overpass to receive a notification.</small>
           </div>
 
           <button type="submit" disabled={loading}>
             {loading ? 'Loading...' : 'Analyze Landsat Data'}
           </button>
         </form>
+
+        {/* Map Container for selecting latitude and longitude */}
+        <div className="map-container" style={{ height: '400px', width: '100%', margin: '20px 0' }}>
+          <MapContainer center={[0, 0]} zoom={2} style={{ height: '100%', width: '100%' }}>
+            <TileLayer
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            />
+            <LocationMarker />
+          </MapContainer>
+          <small>Click on the map to set latitude and longitude values automatically.</small>
+        </div>
 
         {/* Display any error messages */}
         {error && <p style={{ color: 'red' }}>{error}</p>}
@@ -170,7 +206,6 @@ function App() {
             )}
           </div>
         )}
-
       </header>
     </div>
   );
