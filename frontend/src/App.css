@@ -7,6 +7,26 @@
   min-height: 100vh;
 }
 
+body {
+  background: linear-gradient(to bottom right, #4A90E2, #7B4397); /* Light blue to purple gradient */
+  color: #000000; /* Ensure all text is readable on the background */
+}
+
+
+.card img {
+  max-width: 100%;
+  max-height: 200px; /* Set a reasonable maximum height to reduce image size */
+  margin: 0 auto; /* Center the image */
+  display: block;
+}
+
+.card {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
 .App-content {
   padding: 10px;
   text-align: left;
@@ -35,6 +55,7 @@ form {
   background: none; /* Removed box background */
   box-shadow: none; /* Removed shadow to make it more open */
   margin: 0;
+  color: #000000;
 }
 
 .error-text {

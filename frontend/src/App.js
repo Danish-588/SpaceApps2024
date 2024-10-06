@@ -172,90 +172,169 @@ function Home() {
       <p>Analyze Landsat satellite data and receive notifications for upcoming satellite passes.</p>
 
       <div className="flex-container">
-        <form onSubmit={handleSubmit} className="input-form" style={{ marginRight: '20px', flexGrow: '1' }}>
-          <div className="form-group">
-            <label>Latitude:</label>
-            <input type="number" value={latitude} onChange={(e) => setLatitude(e.target.value)} min="-90" max="90" step="0.000001" required />
-            <small>Enter a value between -90 and 90, up to 6 decimal places.</small>
-          </div>
-          <div className="form-group">
-            <label>Longitude:</label>
-            <input type="number" value={longitude} onChange={(e) => setLongitude(e.target.value)} min="-180" max="180" step="0.000001" required />
-            <small>Enter a value between -180 and 180, up to 6 decimal places.</small>
-          </div>
-          <div className="form-group">
-            <label>Cloud Cover Threshold (%):</label>
-            <input type="number" value={cloudCover} onChange={(e) => setCloudCover(e.target.value)} min="0" max="100" required />
-            <small>Enter a value between 0 and 100 to set the cloud cover threshold.</small>
-          </div>
-          <div className="form-group">
-            <label>Email (optional):</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-            <small>Enter your email address to receive notifications.</small>
-          </div>
-          <div className="form-group">
-            <label>Notify Me Before Overpass (Hours):</label>
-            <input type="number" value={notificationTime} onChange={(e) => setNotificationTime(e.target.value)} min="0.1" step="0.1" required />
-            <small>Enter the number of hours before the overpass to receive a notification.</small>
-          </div>
+  <form 
+    onSubmit={handleSubmit} 
+    className="input-form" 
+    style={{ 
+      marginRight: '20px', 
+      flexGrow: '1', 
+      width: '300px', // Set a fixed width for the form
+      backgroundColor: 'white', 
+      padding: '20px', 
+      borderRadius: '5px', 
+      boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)' 
+    }}
+  >
+  <div className="form-group">
+    <label>Latitude:</label>
+    <input
+      type="number"
+      value={latitude}
+      onChange={(e) => setLatitude(e.target.value)}
+      min="-90"
+      max="90"
+      step="0.000001"
+      required
+    />
+    <small>Enter a value between -90 and 90, up to 6 decimal places.</small>
+  </div>
+  <div className="form-group">
+    <label>Longitude:</label>
+    <input
+      type="number"
+      value={longitude}
+      onChange={(e) => setLongitude(e.target.value)}
+      min="-180"
+      max="180"
+      step="0.000001"
+      required
+    />
+    <small>Enter a value between -180 and 180, up to 6 decimal places.</small>
+  </div>
+  <div className="form-group">
+    <label>Cloud Cover Threshold (%):</label>
+    <input
+      type="number"
+      value={cloudCover}
+      onChange={(e) => setCloudCover(e.target.value)}
+      min="0"
+      max="100"
+      required
+    />
+    <small>Enter a value between 0 and 100 to set the cloud cover threshold.</small>
+  </div>
+  <div className="form-group">
+    <label>Email (optional):</label>
+    <input
+      type="email"
+      value={email}
+      onChange={(e) => setEmail(e.target.value)}
+    />
+    <small>Enter your email address to receive notifications.</small>
+  </div>
+  <div className="form-group">
+    <label>Notify Me Before Overpass (Hours):</label>
+    <input
+      type="number"
+      value={notificationTime}
+      onChange={(e) => setNotificationTime(e.target.value)}
+      min="0.1"
+      step="0.1"
+      required
+    />
+    <small>Enter the number of hours before the overpass to receive a notification.</small>
+  </div>
 
-          <button type="submit" className="btn btn-primary" disabled={loading}>
-            {loading ? 'Loading...' : 'Analyze and Fetch Imagery'}
-          </button>
-        </form>
+  <button type="submit" className="btn btn-primary" disabled={loading}>
+    {loading ? 'Loading...' : 'Analyze and Fetch Imagery'}
+  </button>
+</form>
 
-        <div className="map-container" style={{ height: '50vh', width: '45%', flexGrow: '2' }}>
-          <MapContainer
-            center={[0, 0]}
-            zoom={2}
-            minZoom={2}
-            maxBounds={[
-              [-90, -180],
-              [90, 180],
-            ]}
-            maxBoundsViscosity={1.0}
-            style={{ height: '100%', width: '100%' }}
-          >
-            <TileLayer
-              url="https://tiles.stadiamaps.com/tiles/osm_bright/{z}/{x}/{y}{r}.png?api_key=STADIA_API_KEY"
-              attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a>, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            />
-            <LocationMarker />
-          </MapContainer>
-          <small>Click on the map to set latitude and longitude values automatically.</small>
-        </div>
-      </div>
+<div className="row">
+  <div className="col-md-4">
+    {/* Form goes here */}
+  </div>
+  <div className="col-md-8">
+    {/* Map goes here */}
+  </div>
+</div>
+
+
+
+<div 
+    className="map-container" 
+    style={{ 
+      height: '65vh', 
+      width: 'calc(100% - 340px)', // Adjust width to fill the remaining space
+      flexGrow: '2', 
+      marginLeft: '20px' // Add some margin to separate form and map
+    }}
+  >
+    <MapContainer
+      center={[0, 0]}
+      zoom={2}
+      minZoom={2}
+      maxBounds={[
+        [-90, -180],
+        [90, 180],
+      ]}
+      maxBoundsViscosity={1.0}
+      style={{ height: '100%', width: '100%' }}
+    >
+      <TileLayer
+        url="https://tiles.stadiamaps.com/tiles/osm_bright/{z}/{x}/{y}{r}.png?api_key=STADIA_API_KEY"
+        attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a>, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      />
+      <LocationMarker />
+    </MapContainer>
+    <small>Click on the map to set latitude and longitude values automatically.</small>
+  </div>
+</div>
 
       {error && <p className="error-text">{error}</p>}
 
       {satelliteData && (
-        <div className="satellite-data">
-          <h2>Satellite Data</h2>
+  <div className="row mt-4">
+    <div className="col-md-6">
+      <div className="card">
+        <div className="card-body">
+          <h5 className="card-title">Satellite Data</h5>
           {satelliteData.overpass_times.map((overpass, index) => (
-            <div key={index}>
-              <p>Landsat {index + 8} Next Overpass: {new Date(overpass.next_overpass).toLocaleString()}</p>
+            <div key={index} className="mb-3">
+              <p><strong>Landsat {index + 8} Next Overpass:</strong> {new Date(overpass.next_overpass).toLocaleString()}</p>
               {countdowns[`landsat_${index}`] && (
-                <p>Time Remaining Until Overpass: {countdowns[`landsat_${index}`]}</p>
+                <p><strong>Time Remaining Until Overpass:</strong> {countdowns[`landsat_${index}`]}</p>
               )}
             </div>
           ))}
-          <p>Cloud Cover: {cloudCover}%</p>
+          <p><strong>Cloud Cover:</strong> {cloudCover}%</p>
         </div>
-      )}
+      </div>
+    </div>
 
-      {imageryUrl && (
-        <div className="nasa-imagery">
-          <h2>NASA Imagery</h2>
-          <img src={imageryUrl} alt="NASA Satellite Imagery" style={{ maxWidth: '100%', marginTop: '20px' }} />
-        </div>
-      )}
-
+    <div className="col-md-6">
       {landsatImage && (
-        <div className="landsat-image">
-          <h2>Landsat Reflectance Data</h2>
-          <img src={landsatImage} alt="Landsat Imagery" style={{ maxWidth: '100%', marginTop: '20px' }} />
+        <div className="card">
+          <img src={landsatImage} className="card-img-top" alt="Landsat Imagery" />
+          <div className="card-body">
+            <h5 className="card-title">Landsat Reflectance Data</h5>
+          </div>
         </div>
       )}
+      {imageryUrl && (
+        <div className="card mt-3">
+          <img src={imageryUrl} className="card-img-top" alt="NASA Satellite Imagery" />
+          <div className="card-body">
+            <h5 className="card-title">NASA Imagery</h5>
+          </div>
+        </div>
+      )}
+    </div>
+  </div>
+)}
+
+
+      
     </div>
   );
 }
