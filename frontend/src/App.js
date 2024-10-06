@@ -13,25 +13,18 @@ function Home() {
   const [notificationTime, setNotificationTime] = useState(1);
   const [email, setEmail] = useState('');
   const [satelliteData, setSatelliteData] = useState(null);
-  const [imageryUrl, setImageryUrl] = useState(null);
-  const [landsatImage, setLandsatImage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-
-  const apiUrl = 'https://api.nasa.gov/planetary/earth/imagery';
-  const apiKey = 'b5XzJdVDyPSjA342CgG7fhfWPgAYDW6DFZCw1aeN';  
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setSatelliteData(null);
-    setImageryUrl(null);
-    setLandsatImage(null);
 
     try {
       // Making a POST request to the backend using fetch for Landsat data analysis
-      const response = await fetch('/api/analyze_landsat', {
+      const response = await fetch('/api/analyze_landsat_grid', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -52,37 +45,6 @@ function Home() {
       const data = await response.json();
       setSatelliteData(data);
 
-      // Fetching NASA imagery for the selected coordinates
-      const imageryResponse = await fetch('/api/fetch_imagery', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          lat: latitude,
-          lon: longitude,
-        }),
-      });
-
-      if (!imageryResponse.ok) {
-        throw new Error('Failed to fetch imagery. Please try again.');
-      }
-
-      const imageryData = await imageryResponse.json();
-      setImageryUrl(imageryData.imageUrl);
-
-      // Fetch Landsat imagery from NASA API
-      const apiUrlFull = `${apiUrl}?lon=${longitude}&lat=${latitude}&date=${new Date().toISOString().slice(0, 10)}&cloud_score=True&dim=0.1&api_key=${apiKey}`;
-      const landsatResponse = await fetch(apiUrlFull);
-
-      if (!landsatResponse.ok) {
-        throw new Error(`Failed to fetch Landsat imagery: ${landsatResponse.status} ${landsatResponse.statusText}`);
-      }
-
-      const landsatBlob = await landsatResponse.blob();
-      const landsatUrl = URL.createObjectURL(landsatBlob);
-      setLandsatImage(landsatUrl);
-      
     } catch (err) {
       console.error('Error fetching data:', err);
       setError(err.message);
@@ -210,75 +172,20 @@ function Home() {
 
       {satelliteData && (
         <div className="satellite-data">
-          <h2>Next Satellite Pass Details</h2>
-          <p><strong>Location:</strong> {satelliteData.location}</p>
-          <h3>Next Overpasses:</h3>
-          {satelliteData.overpass_times.length > 0 ? (
-            satelliteData.overpass_times.map((overpass, index) => (
-              <div key={index} className="overpass-details">
-                <p>
-                  <strong>Satellite:</strong> {overpass.satellite}
-                </p>
-                <p>
-                  <strong>Next Overpass:</strong>{' '}
-                  {overpass.next_overpass
-                    ? new Date(overpass.next_overpass).toLocaleString()
-                    : 'No upcoming overpass.'}
-                </p>
-              </div>
-            ))
-          ) : (
-            <p>No upcoming overpasses found for the selected location.</p>
-          )}
-
-          {/* Surface Reflectance Data Section */}
-          <h3>Surface Reflectance Data for 3x3 Grid</h3>
-          {satelliteData.grid_data && satelliteData.grid_data.length > 0 ? (
-            satelliteData.grid_data.map((pixelData, index) => (
-              <div key={index} className="grid-data">
-                <h4>Pixel {index + 1}</h4>
-                {pixelData.error ? (
-                  <p>{pixelData.error}</p>
+          <h2>3x3 Landsat Pixel Grid</h2>
+          <div className="grid-container">
+            {satelliteData.grid_data.map((pixelData, index) => (
+              <div key={index} className="grid-item">
+                <p><strong>Pixel {index + 1}</strong></p>
+                <p>Lat: {pixelData.lat}, Lon: {pixelData.lon}</p>
+                {pixelData.imageUrl ? (
+                  <img src={pixelData.imageUrl} alt={`Pixel at Lat: ${pixelData.lat}, Lon: ${pixelData.lon}`} style={{ maxWidth: '100%' }} />
                 ) : (
-                  <>
-                    <p><strong>Acquisition Date:</strong> {new Date(pixelData.metadata.acquisition_date).toLocaleString()}</p>
-                    <p><strong>Cloud Cover:</strong> {pixelData.metadata.cloud_cover}%</p>
-                    <p><strong>Satellite:</strong> {pixelData.metadata.satellite}</p>
-                    {Object.keys(pixelData.reflectanceData).length > 0 ? (
-                      <ul>
-                        {Object.entries(pixelData.reflectanceData).map(([band, url]) => (
-                          <li key={band}>
-                            <strong>{band}:</strong>{' '}
-                            <a href={url} target="_blank" rel="noopener noreferrer">
-                              Download {band} Band
-                            </a>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p>No reflectance data available for download.</p>
-                    )}
-                  </>
+                  <p>No image available</p>
                 )}
               </div>
-            ))
-          ) : (
-            <p>No surface reflectance data available for the 3x3 grid.</p>
-          )}
-        </div>
-      )}
-
-      {imageryUrl && (
-        <div className="nasa-imagery">
-          <h2>NASA Imagery</h2>
-          <img src={imageryUrl} alt="NASA Satellite Imagery" style={{ maxWidth: '100%', marginTop: '20px' }} />
-        </div>
-      )}
-
-      {landsatImage && (
-        <div className="landsat-image">
-          <h2>Landsat Reflectance Data</h2>
-          <img src={landsatImage} alt="Landsat Imagery" style={{ maxWidth: '100%', marginTop: '20px' }} />
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -302,7 +209,6 @@ function App() {
 
       <Routes>
         <Route path="/" element={<Home />} />
-        {/* Add other routes as necessary */}
       </Routes>
     </Router>
   );

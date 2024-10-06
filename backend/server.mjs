@@ -32,19 +32,19 @@ const transporter = nodemailer.createTransport({
 
 // Utility function to calculate surrounding pixels for a 3x3 grid
 function getSurroundingPixels(latitude, longitude, pixelSize = 0.00027) {
-  // Approximate value for a Landsat pixel in degrees (30m ~ 0.00027 degrees)
-  const offsets = [
-    [-1, -1], [-1, 0], [-1, 1],
-    [0, -1], [0, 0], [0, 1],
-    [1, -1], [1, 0], [1, 1],
-  ];
-
-  return offsets.map(([latOffset, lonOffset]) => ({
-    lat: latitude + latOffset * pixelSize,
-    lon: longitude + lonOffset * pixelSize,
-  }));
+    // Approximate value for a Landsat pixel in degrees (30m ~ 0.00027 degrees)
+    const offsets = [
+      [-1, -1], [-1, 0], [-1, 1],
+      [0, -1], [0, 0], [0, 1],
+      [1, -1], [1, 0], [1, 1],
+    ];
+  
+    return offsets.map(([latOffset, lonOffset]) => ({
+      lat: latitude + latOffset * pixelSize,
+      lon: longitude + lonOffset * pixelSize,
+    }));
 }
-
+  
 // Function to predict the next satellite overpass for multiple satellites
 function predictNextOverpass(lat, lon) {
   const tleLines = [
@@ -256,6 +256,74 @@ app.post('/api/fetch_imagery', async (req, res) => {
     console.error('Error fetching NASA imagery:', error.message);
     return res.status(500).json({ error: 'Failed to fetch imagery' });
   }
+});
+
+// Endpoint to analyze Landsat data for a 3x3 grid of pixels
+app.post('/api/analyze_landsat_grid', async (req, res) => {
+    const { location, cloud_cover, date_range } = req.body;
+  
+    let lat, lon;
+  
+    try {
+      [lat, lon] = location.split(',').map(coord => parseFloat(coord.trim()));
+    } catch (error) {
+      return res.status(400).json({ error: 'Invalid location format' });
+    }
+  
+    const surroundingPixels = getSurroundingPixels(lat, lon);
+  
+    try {
+      const promises = surroundingPixels.map(async ({ lat, lon }) => {
+        const apiUrl = 'https://api.nasa.gov/planetary/earth/imagery';
+        const apiKey = process.env.NASA_API_KEY;
+
+        try {
+          const response = await axios.get(apiUrl, {
+            params: {
+              lon,
+              lat,
+              date: '2024-10-06', // Replace with the desired date or make dynamic
+              cloud_score: true,
+              dim: 0.1,
+              api_key: apiKey,
+            },
+            maxContentLength: 50 * 1024 * 1024, // Set max content length to 50MB
+            maxBodyLength: 50 * 1024 * 1024, // Set max body length to 50MB
+          });
+
+          if (response.status === 200) {
+            return {
+              lat,
+              lon,
+              imageUrl: response.data.url,
+            };
+          } else {
+            return {
+              lat,
+              lon,
+              error: 'No image available',
+            };
+          }
+        } catch (error) {
+          console.error(`Error fetching imagery for lat ${lat} lon ${lon}:`, error.message);
+          return {
+            lat,
+            lon,
+            error: 'Failed to fetch imagery',
+          };
+        }
+      });
+  
+      const gridData = await Promise.all(promises);
+  
+      res.json({
+        location: `${lat}, ${lon}`,
+        grid_data: gridData,
+      });
+    } catch (error) {
+      console.error('Error fetching grid data:', error);
+      res.status(500).json({ error: 'Failed to fetch data for the 3x3 grid.' });
+    }
 });
 
 // Start the server
