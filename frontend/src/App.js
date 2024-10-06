@@ -185,10 +185,10 @@ function App() {
         {/* Map Container for selecting latitude and longitude */}
         <div className="map-container" style={{ height: '400px', width: '100%', margin: '20px 0' }}>
           <MapContainer center={[0, 0]} zoom={2} style={{ height: '100%', width: '100%' }}>
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            />
+          <TileLayer
+            url="https://tiles.stadiamaps.com/tiles/osm_bright/{z}/{x}/{y}{r}.png"
+            attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a>, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          />
             <LocationMarker />
           </MapContainer>
           <small>Click on the map to set latitude and longitude values automatically.</small>
