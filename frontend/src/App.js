@@ -186,7 +186,7 @@ function App() {
         <div className="map-container" style={{ height: '400px', width: '100%', margin: '20px 0' }}>
           <MapContainer center={[0, 0]} zoom={2} style={{ height: '100%', width: '100%' }}>
           <TileLayer
-            url="https://tiles.stadiamaps.com/tiles/osm_bright/{z}/{x}/{y}{r}.png"
+            url="https://tiles.stadiamaps.com/tiles/osm_bright/{z}/{x}/{y}{r}.png?api_key=STADIA_API_KEY"
             attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a>, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           />
             <LocationMarker />
